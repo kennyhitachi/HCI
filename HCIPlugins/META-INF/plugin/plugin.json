@@ -1,0 +1,34 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom",
+    "description": "Custom Plugins for HDI, Annotations and Text",
+    "displayName": "Custom Plugins",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.CustomSnippetExtractStagePlugin",
+            "pluginName": "com.hds.hci.plugins.stage.custom.customSnippetExtractStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        },
+         {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.CustomTextSearchStagePlugin",
+            "pluginName": "com.hds.hci.plugins.stage.custom.customTextSearchStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        },
+         {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.CustomHDIFileNameExtractor",
+            "pluginName": "com.hds.hci.plugins.stage.custom.customHDIFileNameExtractor",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        },
+         {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.CustomAnnotationStagePlugin",
+            "pluginName": "com.hds.hci.plugins.stage.custom.customAnnotationStagePlugin",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        },
+        {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.AnkiCarDataParserStagePlugin",
+            "pluginName": "com.hds.hci.plugins.stage.custom.ankiCarDataParserStagePlugin",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "2.0.2"
+}
+
