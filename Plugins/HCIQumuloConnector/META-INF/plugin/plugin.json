@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.qumulo",
+    "description": "Qumulo Plugin Bundle",
+    "displayName": "Qumulo Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hds.hci.plugins.connector.custom.QumuloConnectorPlugin",
+            "pluginName": "com.hds.hci.plugins.connector.custom.qumuloConnector",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.2.6"
+}
