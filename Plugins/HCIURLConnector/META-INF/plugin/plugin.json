@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom",
+    "description": "Url Connector Plugin",
+    "displayName": "Url Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hds.hci.plugins.connector.custom.URLConnectorPlugin",
+            "pluginName": "com.hds.hci.plugins.connector.custom.urlconnector",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.2.0"
+}
