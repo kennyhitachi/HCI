@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jdk1.8.0_65"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Customers/HCI/HCI-1.1/HCI-Plugin-SDK/lib/plugin-sdk-1.1.2.27.jar" sourcepath="/HCIPlugins/javadoc/plugin-sdk-1.1.2.27-javadoc.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
