@@ -91,11 +91,8 @@ public class QumuloRestGateway {
 	public HttpResponse qumuloGetOperation(String containerUri) throws ClientProtocolException, IOException {
 
 		HttpResponse httpResponse = null;
-
 		HttpGet httpRequest = new HttpGet(containerUri);
-
 		httpRequest.setHeader(QumuloUtils.AUTH_HEADER, "Bearer " + this.mAccessToken);
-
 		httpResponse = mHttpClient.execute(httpRequest);
 
 		if (2 != (int) (httpResponse.getStatusLine().getStatusCode() / 100)) {
