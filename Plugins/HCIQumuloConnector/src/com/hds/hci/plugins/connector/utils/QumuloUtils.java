@@ -8,7 +8,6 @@
 
 package com.hds.hci.plugins.connector.utils;
 
-import java.io.IOException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
@@ -16,11 +15,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.HttpResponseException;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.client.params.CookiePolicy;
 import org.apache.http.conn.scheme.PlainSocketFactory;
@@ -32,7 +27,6 @@ import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
-import org.apache.http.util.EntityUtils;
 
 public class QumuloUtils {
 	
@@ -55,9 +49,6 @@ public class QumuloUtils {
 		}
 	}
 
-	/*
-	 * Provide the ability to override port numbers for HTTP/HTTPS
-	 */
 	private static int HTTPSPort = 443;
 	private static int HTTPPort = 80;
 
@@ -112,65 +103,4 @@ public class QumuloUtils {
 		
 		return new DefaultHttpClient(connectionMgr, clientParams);
 	}
-	
-	
-	
-
-  
-	/**
-	 * Routine that dumps out the HTTP header to system out.
-	 */
-
-	public static void dumpHttpResponse(HttpResponse inHttpResponse) {
-
-		// Dump out the status line
-		System.out.println(inHttpResponse.getStatusLine());
-	
-		// Dump out Header values.
-		Header responseHeaders[] = inHttpResponse.getAllHeaders();
-	    
-	    for (int i = 0; i < responseHeaders.length; i++) {
-	    	System.out.println(responseHeaders[i].toString());
-	    }
-	}
-
-	// Wrapper method to help make for more streamlined code.
-	public static HttpResponse executeHttpRequestAndCheck(HttpClient inHttpClient, HttpUriRequest inHttpUriRequest, Boolean bShouldDumpHTTPHeaders)
-			throws HttpResponseException, IOException {
-		
-		/*
-		 * Execute the request.
-		 */
-		HttpResponse httpResponse = inHttpClient.execute(inHttpUriRequest);
-
-		// For debugging purposes, dump out the HTTP Response.
-		if ( bShouldDumpHTTPHeaders )
-			QumuloUtils.dumpHttpResponse(httpResponse);
-
-		// If the return code is anything BUT 200 range indicating
-		// success, we have to throw an exception.
-		if (2 != (int) (httpResponse.getStatusLine().getStatusCode() / 100)) {
-			// Clean up after ourselves and release the HTTP connection
-			// to the connection manager.
-			try {
-				EntityUtils.consume(httpResponse.getEntity());
-			} catch (IOException e) {
-				// Best Attempt.
-			}
-
-			throw new HttpResponseException(httpResponse
-					.getStatusLine().getStatusCode(),
-					"Unexpected status returned from "
-							+ inHttpUriRequest.getMethod()
-							+ " ("
-							+ httpResponse.getStatusLine()
-									.getStatusCode()
-							+ ": "
-							+ httpResponse.getStatusLine()
-									.getReasonPhrase() + ")");
-		}
-		
-		return httpResponse;
-	}
-
 }
