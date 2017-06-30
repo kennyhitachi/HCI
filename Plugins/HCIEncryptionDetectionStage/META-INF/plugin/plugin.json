@@ -1,0 +1,19 @@
+{
+    "bundleName": "com.hds.hci.plugins.custom",
+    "description": "Encrypted Files detection",
+    "displayName": "Encrypted Files detection Plugin",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.EncryptedZipDetector",
+            "pluginName": "com.hds.hci.plugins.stage.custom.encryptedZipDetector",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        },
+        {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.EncryptedFileDetector",
+            "pluginName": "com.hds.hci.plugins.stage.custom.encryptedFileDetector",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.1.5"
+}
+
