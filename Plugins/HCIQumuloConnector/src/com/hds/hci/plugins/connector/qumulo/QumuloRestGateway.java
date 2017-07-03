@@ -25,7 +25,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.util.EntityUtils;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hds.ensemble.sdk.exception.PluginOperationFailedException;
 import com.hds.ensemble.sdk.model.Document;
@@ -52,9 +51,10 @@ public class QumuloRestGateway {
 	private PluginCallback callback;
 
 	private static final String LOGIN_ENDPOINT = "v1/session/login";
-	private static final String ENTRIES_ENDPOINT = "/entries/";
+	private static final String LISTING_ENDPOINT = "/entries/";
 	private static final String FILES_ENDPOINT = "v1/files";
 	private static final String DATA_ENDPOINT = "/data";
+	private static final String INFO_ENDPOINT = "/info/attributes";
 	private static final String SCHEME_SSL = "https";
 	private static final String SCHEME = "http";
 	private static final String HTTP_SEPERATOR = "/";
@@ -76,7 +76,7 @@ public class QumuloRestGateway {
 		init();
 	}
 
-	public void init() throws Exception {
+	private void init() throws Exception {
 		if (!bIsInitialized) {
 				if (null == mHttpClient) {
 					mHttpClient = QumuloUtils.initHttpClient();
@@ -88,7 +88,7 @@ public class QumuloRestGateway {
 		}
 	}
 
-	public HttpResponse qumuloGetOperation(String containerUri) throws ClientProtocolException, IOException {
+	private HttpResponse qumuloGetOperation(String containerUri) throws ClientProtocolException, IOException {
 
 		HttpResponse httpResponse = null;
 		HttpGet httpRequest = new HttpGet(containerUri);
@@ -108,10 +108,26 @@ public class QumuloRestGateway {
 
 	}
 
-	public QumuloFilesResultMapper getQumuloMetadata(String containerUri) throws PluginOperationFailedException {
+	private QumuloFile getQumuloMetadata(String containerUri) throws PluginOperationFailedException {
 
 		ObjectMapper responseMapper = new ObjectMapper();
-		responseMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		QumuloFile qFile = null;
+		try {
+			HttpResponse response = this.qumuloGetOperation(containerUri);
+			String jsonResponseString = IOUtils.toString(response.getEntity().getContent(),
+					StandardCharsets.UTF_8.toString());
+			qFile = responseMapper.readValue(jsonResponseString, QumuloFile.class);
+			EntityUtils.consume(response.getEntity());
+
+		} catch (Exception e) {
+			throw new PluginOperationFailedException("Failed to getMetadata for: " + containerUri, (Throwable) e);
+		}
+		return qFile;
+	}
+	
+	private QumuloFilesResultMapper getQumuloListing(String containerUri) throws PluginOperationFailedException {
+
+		ObjectMapper responseMapper = new ObjectMapper();
 		QumuloFilesResultMapper resultMapper = null;
 		try {
 			HttpResponse response = this.qumuloGetOperation(containerUri);
@@ -121,12 +137,12 @@ public class QumuloRestGateway {
 			EntityUtils.consume(response.getEntity());
 
 		} catch (Exception e) {
-			throw new PluginOperationFailedException("Failed to getMetadata for: " + containerUri, (Throwable) e);
+			throw new PluginOperationFailedException("Failed to get Listing for: " + containerUri, (Throwable) e);
 		}
 		return resultMapper;
 	}
 
-	public String getFilesBaseURI() throws UnsupportedEncodingException {
+	private String getFilesBaseURI() throws UnsupportedEncodingException {
 
 		StringBuilder listingUriBuilder = new StringBuilder();
 		listingUriBuilder.append(this.getBaseUri());
@@ -138,12 +154,13 @@ public class QumuloRestGateway {
 		return listingUriBuilder.toString();
 	}
 
-	public String getListingURI(String uri) throws UnsupportedEncodingException {
-		return uri + ENTRIES_ENDPOINT;
-	}
-
-	public String getDataURI(String uri) throws UnsupportedEncodingException {
-		return uri + DATA_ENDPOINT;
+	private String getQumuloEndpoint(String url, String endpointUri) {
+		StringBuilder endpoint = new StringBuilder();
+		endpoint.append(url);
+		endpoint.append(endpointUri);
+		
+		return endpoint.toString();
+		
 	}
 
 	public String getAccessToken() throws PluginOperationFailedException {
@@ -195,8 +212,8 @@ public class QumuloRestGateway {
 		return loginUri.toString();
 	}
 
-	public String getBaseRestUri() {
-		return this.getBaseUri() + HTTP_REST;
+	private String getBaseRestUri() {
+		return this.getQumuloEndpoint(this.getBaseUri(),HTTP_REST);
 	}
 
 	public String getBaseUri() {
@@ -227,29 +244,16 @@ public class QumuloRestGateway {
 	 */
 	public Document getDocumentMetadata(String inUrl) throws IOException, PluginOperationFailedException {
 		
-		if (inUrl.endsWith(HTTP_SEPERATOR)) {
-			inUrl = inUrl.substring(0, inUrl.length() - 1);
-		}
-		String parentUri = inUrl.substring(0, inUrl.lastIndexOf(HTTP_SEPERATOR));
-		String name = inUrl.substring(inUrl.lastIndexOf(HTTP_SEPERATOR) + 1, inUrl.length());
 		
-		if (name.equals(HTTP_REST.substring(1, HTTP_REST.length()))) {
-			return getDocument(inUrl + HTTP_SEPERATOR, HTTP_REST.substring(1, HTTP_REST.length()), true, null);
-		}
+		String infoUrl = this.getQumuloEndpoint(this.getQumuloRestURL(inUrl),INFO_ENDPOINT);
 		
-		parentUri = parentUri + HTTP_SEPERATOR;
-		String listUri = this.getListingURI(this.getQumuloRestURL(parentUri));
-		
-		QumuloFilesResultMapper resultMapper = this.getQumuloMetadata(listUri);
-		QumuloFile qFile = null;
-		for (QumuloFile entry : resultMapper.getFiles()) {
-			if (name.equalsIgnoreCase(entry.getName())) {
-				qFile = entry;
-				break;
-			}
-		}
+		QumuloFile qFile = this.getQumuloMetadata(infoUrl);
 		if (null == qFile) {
 			throw new PluginOperationFailedException("Failed to get Document Metadata for "+inUrl);
+		}
+		
+		if (qFile.getPath().equals(HTTP_SEPERATOR)) {
+			qFile.setName(HTTP_REST.substring(1,HTTP_REST.length()));
 		}
 		return getDocument(this.getBaseRestUri() + qFile.getPath(), qFile.getName(),
 				QUMULO_DIRECTORY.equals(qFile.getType()), qFile);
@@ -260,8 +264,8 @@ public class QumuloRestGateway {
 			throws PluginOperationFailedException {
 		LinkedList<Document> documentList = new LinkedList<Document>();
 		try {
-			String listUri = this.getListingURI(this.getQumuloRestURL(inUri));
-			QumuloFilesResultMapper resultMapper = this.getQumuloMetadata(listUri);
+			String listUri = this.getQumuloEndpoint(this.getQumuloRestURL(inUri),LISTING_ENDPOINT);
+			QumuloFilesResultMapper resultMapper = this.getQumuloListing(listUri);
 			if (resultMapper != null) {
 
 				for (QumuloFile entry : resultMapper.getFiles()) {
@@ -286,7 +290,7 @@ public class QumuloRestGateway {
 
 	}
 
-	private DocumentBuilder getDocumentFromFile(QumuloFile entry, DocumentBuilder builder) {
+	private DocumentBuilder getMetadataFromFile(QumuloFile entry, DocumentBuilder builder) {
 
 		builder.addMetadata(QumuloStandardFields.FILE_CHANGE_TIME,
 				StringDocumentFieldValue.builder().setString(entry.getChange_time()).build());
@@ -353,21 +357,21 @@ public class QumuloRestGateway {
 		builder.addMetadata(StandardFields.VERSION, StringDocumentFieldValue.builder().setString("1").build());
 		builder.addMetadata(QumuloStandardFields.URL, StringDocumentFieldValue.builder().setString(this.getQumuloRestURL(url)).build());
 		if (entry != null) {
-			builder = getDocumentFromFile(entry, builder);
+			builder = getMetadataFromFile(entry, builder);
 		}
 		return builder.build();
 
 	}
 
-	public Document getRootDocument(String uri, boolean isContainer) throws IOException {
+	public Document getRootDocument(String uri, boolean isContainer) throws IOException, PluginOperationFailedException {
 		if (!uri.endsWith(HTTP_SEPERATOR)) {
-			uri = uri + HTTP_SEPERATOR;
+			uri = this.getQumuloEndpoint(uri,HTTP_SEPERATOR);
 		}
-		return getDocument(this.getBaseRestUri() + uri, HTTP_REST.substring(1, HTTP_REST.length()), true, null);
+		return getDocumentMetadata(this.getQumuloEndpoint(this.getBaseRestUri(), uri));
 	}
 
 	public String getContentAsString(String uri) throws IllegalStateException, IOException, PluginOperationFailedException {
-		String datauri = this.getDataURI(this.getQumuloRestURL(uri));
+		String datauri = this.getQumuloEndpoint(this.getQumuloRestURL(uri),DATA_ENDPOINT);
 		HttpResponse response = this.qumuloGetOperation(datauri);
 		String data = IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
 		EntityUtils.consume(response.getEntity());

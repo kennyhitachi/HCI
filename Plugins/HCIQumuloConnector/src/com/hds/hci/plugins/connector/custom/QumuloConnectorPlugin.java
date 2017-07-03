@@ -256,15 +256,13 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 						(Throwable) ex);
 			}
 
-			uri = qumuloSession.getRestGateway().getLoginUri();
-			url = new URL(uri);
 			try {
-				qumuloSession.getRestGateway().getAccessToken();
+				qumuloSession.getRootDocument();
 			} catch (Exception e) {
-				throw new ConfigurationException("Unable to get an AccessToken" , (Throwable) e);
+				throw new ConfigurationException("Invalid Root Directory Specified");
 			}
 		} catch (Exception ex) {
-			throw new ConfigurationException(ex.getMessage()+" "+ uri, (Throwable) ex);
+			throw new ConfigurationException(ex.getMessage(), (Throwable) ex);
 		}
 	}
 
@@ -299,8 +297,8 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 						this.config.getPropertyValue(PASSWORD.getName()), this.config.getPropertyValue(SSL.getName()),
 						this.callback);
 			} catch (Exception e) {
-				throw new PluginOperationFailedException("Unable to establish a session with Qumulo. "
-						+ "Please verify the credentials.", (Throwable) e);
+				throw new PluginOperationFailedException("Unable to connect to Qumulo. "
+						+ "Please verify the credentials and hostname", (Throwable) e);
 			}
 
 		}
