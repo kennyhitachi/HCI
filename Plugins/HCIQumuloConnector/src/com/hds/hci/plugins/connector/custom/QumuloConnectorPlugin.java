@@ -33,7 +33,6 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -242,19 +241,19 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 
 	@Override
 	public void test(PluginSession pluginSession) throws ConfigurationException, PluginOperationFailedException {
-		String uri = null;
-		URL url;
+		
 		try {
-			QumuloPluginSession qumuloSession = getQumuloPluginSession(pluginSession);
-			uri = qumuloSession.getRestGateway().getBaseUri();
-			url = new URL(uri);
-			String hostname = url.getHost();
+			
+			String hostname = this.getHost();
 			try {
 				InetAddress.getByName(hostname);
 			} catch (UnknownHostException ex) {
 				throw new ConfigurationException("Unable to resolve hostname: "+ hostname,
 						(Throwable) ex);
 			}
+			
+			QumuloPluginSession qumuloSession = getQumuloPluginSession(pluginSession);
+					
 
 			try {
 				qumuloSession.getRootDocument();
