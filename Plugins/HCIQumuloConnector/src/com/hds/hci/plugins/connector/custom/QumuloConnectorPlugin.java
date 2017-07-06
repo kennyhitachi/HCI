@@ -49,29 +49,35 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 
 	private final PluginCallback callback;
 	private final PluginConfig config;
-
+    
+	//Host Name Text Field
 	public static final ConfigProperty.Builder HOST_NAME = new ConfigProperty.Builder()
 
 			.setName("hci.host").setValue("").setType(PropertyType.TEXT).setRequired(true)
 			.setUserVisibleName("Qumulo Host Name").setUserVisibleDescription("Qumulo Host DNS Name");
-
+    
+	//PORT Text Field
 	public static final ConfigProperty.Builder PORT = new ConfigProperty.Builder()
 
 			.setName("hci.port").setValue("").setType(PropertyType.TEXT).setRequired(true)
 			.setUserVisibleName("Qumulo Port").setUserVisibleDescription("Qumulo Port");
-
+    
+	//SSL Checkbox Field
 	public static final ConfigProperty.Builder SSL = new ConfigProperty.Builder().setName("hci.ssl").setValue("true")
 			.setType(PropertyType.CHECKBOX).setRequired(false).setUserVisibleName("Use SSL")
 			.setUserVisibleDescription("Whether to use SSL to talk to Qumulo");
-
+    
+	//Root Directory Text Field
 	public static final ConfigProperty.Builder ROOT_DIR = new ConfigProperty.Builder().setName("hci.root.dir")
 			.setValue("/").setType(PropertyType.TEXT).setRequired(true).setUserVisibleName("Root Directory")
 			.setUserVisibleDescription("Specify Root Directory to start from. Ex: ('/dir1/dir2') where '/' is the root diectory");
-
+    
+	//UserName Text Field
 	public static final ConfigProperty.Builder USER_NAME = new ConfigProperty.Builder().setName("hci.user").setValue("")
 			.setType(PropertyType.TEXT).setRequired(true).setUserVisibleName("User Name")
 			.setUserVisibleDescription("User Name");
-
+	
+    //Password Text Field
 	public static final ConfigProperty.Builder PASSWORD = new ConfigProperty.Builder().setName("hci.password")
 			.setType(PropertyType.PASSWORD).setValue("letmein").setRequired(true).setUserVisibleName("Password")
 			.setUserVisibleDescription("Password");
@@ -86,7 +92,8 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 		qumuloGroupProperties.add(USER_NAME);
 		qumuloGroupProperties.add(PASSWORD);
 	}
-
+	
+    //Qumulo Group Settings
 	public static final ConfigPropertyGroup.Builder QUMULO_SETTINGS = new ConfigPropertyGroup.Builder("Qumulo Settings",
 			null).setType(PropertyGroupType.DEFAULT).setConfigProperties(qumuloGroupProperties);
 
@@ -101,7 +108,8 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 		this.callback = callback;
 		this.config = config;
 	}
-
+    
+	//Basic Validation of fields and additional validation for PORT and ROOT DIR
 	@Override
 	public void validateConfig(PluginConfig config) throws ConfigurationException {
 
@@ -129,7 +137,8 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 			throw new ConfigurationException("Missing Property Password");
 		}
 	}
-
+    
+	
 	@Override
 	public QumuloConnectorPlugin build(PluginConfig config, PluginCallback callback) throws ConfigurationException {
 		validateConfig(config);
@@ -155,7 +164,8 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 	public PluginConfig getDefaultConfig() {
 		return DEFAULT_CONFIG;
 	}
-
+    
+	//Get an instance of a Qumulo Session
 	private QumuloPluginSession getQumuloPluginSession(PluginSession session) {
 		if (!(session instanceof QumuloPluginSession)) {
 			throw new PluginOperationRuntimeException("PluginSession is not an instance of QumuloPluginSession", null);
@@ -164,7 +174,7 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 	}
 
 	@Override
-	public PluginSession startSession() throws PluginOperationFailedException {
+	public PluginSession startSession() throws PluginOperationFailedException, ConfigurationException {
 		return new QumuloPluginSession(callback, config);
 	}
 
@@ -177,33 +187,68 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 	public Integer getPort() {
 		return Integer.parseInt(this.config.getPropertyValue(PORT.getName()));
 	}
-
+    
+	// Get Root Document.
 	@Override
 	public Document root(PluginSession session) throws PluginOperationFailedException {
 		QumuloPluginSession myPluginSession = getQumuloPluginSession(session);
 		return myPluginSession.getRootDocument();
 	}
-
+	
+    /***
+     * List documents for  directories only.
+     * 
+     * E.g  if /Folder is the root directory specified and the directory structure  is as follows:
+     * 
+     * /Folder/SubFolder1
+     * /Folder/Subfolder2
+     * /file.txt
+     * 
+     * This method should return only documents for SubFolder1 and SubFolder2.
+     * 
+     * For additional information refer to the sdk documentation for ConnectorPlugin interface.
+     */
 	@Override
 	public Iterator<Document> listContainers(PluginSession session, Document startDocument)
 			throws PluginOperationFailedException {
 		QumuloPluginSession myPluginSession = getQumuloPluginSession(session);
 		return myPluginSession.listContainers(startDocument);
 	}
-
+    
+	/***
+     * List documents for directories and files.
+     * 
+     * E.g  if /Folder is the root directory specified and the directory structure  is as follows:
+     * 
+     * /Folder/SubFolder1
+     * /Folder/Subfolder2
+     * /file.txt
+     * 
+     * This method should return documents for SubFolder1 , SubFolder2 and file.txt
+     * 
+     * For additional information refer to the sdk documentation for ConnectorPlugin interface.
+     */
 	@Override
 	public Iterator<Document> list(PluginSession session, Document startDocument)
 			throws PluginOperationFailedException {
 		QumuloPluginSession myPluginSession = getQumuloPluginSession(session);
 		return myPluginSession.list(startDocument);
 	}
+	
+	/***
+     * Get Metadata for a single entry. The entry could be a directory or a file.
+     * 
+     * E.g  Get the metadata for a root directory.
+     * 
+     */
 
 	@Override
 	public Document getMetadata(PluginSession session, URI uri) throws PluginOperationFailedException {
 		QumuloPluginSession myPluginSession = getQumuloPluginSession(session);
 		return myPluginSession.getMetadata(uri);
 	}
-
+    
+	// Get the content stream for a given document.
 	@Override
 	public InputStream get(PluginSession session, URI uri) throws PluginOperationFailedException {
 		QumuloPluginSession myPluginSession = getQumuloPluginSession(session);
@@ -232,29 +277,25 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 
 		return ConnectorMode.CRAWL_LIST;
 	}
-
+    
+	// Not implemented as this is a CRAWL Based connector.
 	@Override
 	public DocumentPagedResults getChanges(PluginSession pluginSession, String eventToken)
 			throws ConfigurationException, PluginOperationFailedException {
 		throw new PluginOperationFailedException("Operation not supported");
 	}
-
+    
+	/***
+     * Perform additional validations like:
+     *  - check if the user specified a root directory that actually exists on the Filesystem
+     *  - validate username and password combo to obtain an access token.
+     *  - validate if the user specified an invalid hostname.
+     */
 	@Override
 	public void test(PluginSession pluginSession) throws ConfigurationException, PluginOperationFailedException {
 		
 		try {
-			
-			String hostname = this.getHost();
-			try {
-				InetAddress.getByName(hostname);
-			} catch (UnknownHostException ex) {
-				throw new ConfigurationException("Unable to resolve hostname: "+ hostname,
-						(Throwable) ex);
-			}
-			
 			QumuloPluginSession qumuloSession = getQumuloPluginSession(pluginSession);
-					
-
 			try {
 				qumuloSession.getRootDocument();
 			} catch (Exception e) {
@@ -284,20 +325,29 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 		PluginCallback callback;
 		QumuloRestGateway restGateway;
 		PluginConfig config;
-
-		QumuloPluginSession(PluginCallback callback, PluginConfig config) throws PluginOperationFailedException {
+        
+		// Create a Qumulo Plugin session.
+		QumuloPluginSession(PluginCallback callback, PluginConfig config) throws PluginOperationFailedException, ConfigurationException {
 
 			this.config = config;
 			this.callback = callback;
+			String hostname = this.config.getPropertyValue(HOST_NAME.getName());
 			try {
-				this.restGateway = new QumuloRestGateway(this.config.getPropertyValue(HOST_NAME.getName()),
+				InetAddress.getByName(hostname);
+			} catch (UnknownHostException ex) {
+				throw new ConfigurationException("Unable to resolve hostname: "+ hostname,
+						(Throwable) ex);
+			}
+			// Initialize the Qumulo REST interface.
+			try {
+				this.restGateway = new QumuloRestGateway(hostname,
 						Integer.parseInt(this.config.getPropertyValue(PORT.getName())),
 						this.config.getPropertyValue(USER_NAME.getName()),
 						this.config.getPropertyValue(PASSWORD.getName()), this.config.getPropertyValue(SSL.getName()),
 						this.callback);
 			} catch (Exception e) {
 				throw new PluginOperationFailedException("Unable to connect to Qumulo. "
-						+ "Please verify the credentials and hostname", (Throwable) e);
+						+ "Please verify the credentials", (Throwable) e);
 			}
 
 		}
@@ -306,7 +356,8 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 		public void close() {
 
 		}
-
+        
+		// Get a Document for the root directory.
 		public Document getRootDocument() throws PluginOperationFailedException {
 			String rootUri = this.config.getPropertyValueOrDefault(ROOT_DIR.getName(), "/");
 			try {
@@ -316,12 +367,14 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 				throw new PluginOperationFailedException("Unable to browse root Directory: "+rootUri, (Throwable) e);
 			}
 		}
-
+        
+		// Implement listContainers in the REST Gateway.
 		public Iterator<Document> listContainers(Document startDocument) throws PluginOperationFailedException {
 			String uri = startDocument.getUri();
 			return this.getRestGateway().getDocumentList(uri, true);
 		}
-
+        
+		// Implement getMetaData in the REST Gateway.
 		public Document getMetadata(URI uri) throws PluginOperationFailedException {
 			try {
 				return this.getRestGateway().getDocumentMetadata(uri.toString());
@@ -354,7 +407,8 @@ public class QumuloConnectorPlugin implements ConnectorPlugin {
 				throw new ConfigurationException("Failed to Failed to Open Content Stream for "+uriString, (Throwable) ex);
 			}
 		}
-
+        
+		// Implement list in the REST Gateway.
 		public Iterator<Document> list(Document startDocument) throws PluginOperationFailedException {
 			String uri = startDocument.getUri();
 			return this.getRestGateway().getDocumentList(uri, false);
