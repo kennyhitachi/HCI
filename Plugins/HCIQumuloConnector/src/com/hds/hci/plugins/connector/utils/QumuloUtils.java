@@ -31,6 +31,16 @@ import org.apache.http.params.HttpParams;
 public class QumuloUtils {
 	
 	public static final String AUTH_HEADER = "Authorization";
+	public static final String LOGIN_ENDPOINT = "v1/session/login";
+	public static final String LISTING_ENDPOINT = "/entries/";
+	public static final String FILES_ENDPOINT = "v1/files";
+	public static final String DATA_ENDPOINT = "/data";
+	public static final String INFO_ENDPOINT = "/info/attributes";
+	public static final String SCHEME_SSL = "https";
+	public static final String SCHEME = "http";
+	public static final String HTTP_SEPERATOR = "/";
+	public static final String HTTP_REST = "/rest";
+	public static final String EMPTY_STRING = "";
 	
 	private static class QumuloTrustManager implements X509TrustManager {
 

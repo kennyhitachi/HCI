@@ -8,7 +8,9 @@
 
 package com.hds.hci.plugins.connector.qumulo;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +43,7 @@ import com.hds.hci.plugins.connector.utils.QumuloToken;
 import com.hds.hci.plugins.connector.utils.QumuloUtils;
 
 public class QumuloRestGateway {
-	
+
 	private String sHost;
 	private int iPort;
 	private String sUserName;
@@ -51,18 +53,8 @@ public class QumuloRestGateway {
 	private String sAccessToken;
 	private PluginCallback callback;
 
-	private static final String LOGIN_ENDPOINT = "v1/session/login";
-	private static final String LISTING_ENDPOINT = "/entries/";
-	private static final String FILES_ENDPOINT = "v1/files";
-	private static final String DATA_ENDPOINT = "/data";
-	private static final String INFO_ENDPOINT = "/info/attributes";
-	private static final String SCHEME_SSL = "https";
-	private static final String SCHEME = "http";
-	private static final String HTTP_SEPERATOR = "/";
-	private static final String HTTP_REST = "/rest";
-
 	private static HttpClient mHttpClient = null;
-	
+
 	// Qumulo Directory and File Identifiers.
 	private static final String QUMULO_DIRECTORY = "FS_FILE_TYPE_DIRECTORY";
 	private static final String QUMULO_FILE = "FS_FILE_TYPE_FILE";
@@ -78,22 +70,23 @@ public class QumuloRestGateway {
 		QumuloUtils.setHTTPSPort(port);
 		init();
 	}
-	
-    // Initialize the httpClient and accesstoken.
+
+	// Initialize the httpClient and accesstoken.
 	private void init() throws Exception {
 		if (!bIsInitialized) {
-				if (null == mHttpClient) {
-					mHttpClient = QumuloUtils.initHttpClient();
-				}
-				if (null == sAccessToken) {
-					getAccessToken();
-				}
-			bIsInitialized = true;	
+			if (null == mHttpClient) {
+				mHttpClient = QumuloUtils.initHttpClient();
+			}
+			if (null == sAccessToken) {
+				getAccessToken();
+			}
+			bIsInitialized = true;
 		}
 	}
-    
-	// Perform  a REST GET Operation on the passed URL and return a httpResponse object.
-	private HttpResponse qumuloGetOperation(String containerUri) throws ClientProtocolException, IOException {
+
+	// Perform a REST GET Operation on the passed URL and return a httpResponse
+	// object.
+	public HttpResponse qumuloGetOperation(String containerUri) throws ClientProtocolException, IOException {
 
 		HttpResponse httpResponse = null;
 		HttpGet httpRequest = new HttpGet(containerUri);
@@ -112,7 +105,7 @@ public class QumuloRestGateway {
 		return httpResponse;
 
 	}
-    
+
 	// Get QumuloFile Object to extract metadata.
 	private QumuloFile getQumuloMetadata(String containerUri) throws PluginOperationFailedException {
 
@@ -130,7 +123,7 @@ public class QumuloRestGateway {
 		}
 		return qFile;
 	}
-	
+
 	// Get a listing of QumuloFile Objects in side a container.
 	private QumuloFilesResultMapper getQumuloListing(String containerUri) throws PluginOperationFailedException {
 
@@ -148,36 +141,37 @@ public class QumuloRestGateway {
 		}
 		return resultMapper;
 	}
-    
+
 	// Returns the Qumulo Files Base URL with the reference encoded.
 	private String getFilesBaseURI() throws UnsupportedEncodingException {
 
 		StringBuilder listingUriBuilder = new StringBuilder();
 		listingUriBuilder.append(this.getBaseUri());
-		listingUriBuilder.append(HTTP_SEPERATOR);
-		listingUriBuilder.append(FILES_ENDPOINT);
-		listingUriBuilder.append(HTTP_SEPERATOR);
-		listingUriBuilder.append(URLEncoder.encode(HTTP_SEPERATOR, StandardCharsets.UTF_8.toString()));
+		listingUriBuilder.append(QumuloUtils.HTTP_SEPERATOR);
+		listingUriBuilder.append(QumuloUtils.FILES_ENDPOINT);
+		listingUriBuilder.append(QumuloUtils.HTTP_SEPERATOR);
+		listingUriBuilder.append(URLEncoder.encode(QumuloUtils.HTTP_SEPERATOR, StandardCharsets.UTF_8.toString()));
 
 		return listingUriBuilder.toString();
 	}
 
-	private String getQumuloEndpoint(String url, String endpointUri) {
+	public String getQumuloEndpoint(String url, String endpointUri) {
 		StringBuilder endpoint = new StringBuilder();
 		endpoint.append(url);
 		endpoint.append(endpointUri);
-		
+
 		return endpoint.toString();
-		
+
 	}
-    
-	// Get the accesstoken using the Qumulo REST session management login endpoint.
+
+	// Get the accesstoken using the Qumulo REST session management login
+	// endpoint.
 	public String getAccessToken() throws PluginOperationFailedException {
 
 		ObjectMapper responseMapper = new ObjectMapper();
 		ObjectMapper requestMapper = new ObjectMapper();
 		QumuloToken qumuloToken = null;
-		
+
 		QumuloCredentials credentials = new QumuloCredentials(this.getUserName(), this.getPassword());
 
 		try {
@@ -207,24 +201,25 @@ public class QumuloRestGateway {
 			sAccessToken = qumuloToken.getBearer_token();
 			return sAccessToken;
 		} catch (Exception e) {
-			
+
 			throw new PluginOperationFailedException("Failed to get an AccessToken ", (Throwable) e);
-		} 
-		
+		}
+
 	}
-    
+
 	// Construct a Qumulo REST login Endpoint
 	public String getLoginUri() {
 		StringBuilder loginUri = new StringBuilder();
 		loginUri.append(this.getBaseUri());
-		loginUri.append(HTTP_SEPERATOR);
-		loginUri.append(LOGIN_ENDPOINT);
+		loginUri.append(QumuloUtils.HTTP_SEPERATOR);
+		loginUri.append(QumuloUtils.LOGIN_ENDPOINT);
 		return loginUri.toString();
 	}
-    
-	// Construct a Base REST url. The Qumulo REST url is different from a standard REST URL.
+
+	// Construct a Base REST url. The Qumulo REST url is different from a
+	// standard REST URL.
 	private String getBaseRestUri() {
-		return this.getQumuloEndpoint(this.getBaseUri(),HTTP_REST);
+		return this.getQumuloEndpoint(this.getBaseUri(), QumuloUtils.HTTP_REST);
 	}
 
 	public String getBaseUri() {
@@ -232,9 +227,9 @@ public class QumuloRestGateway {
 		StringBuilder baseUriBuilder = new StringBuilder();
 		boolean useSSL = Boolean.parseBoolean(this.getSsl());
 		if (useSSL) {
-			baseUriBuilder.append(SCHEME_SSL);
+			baseUriBuilder.append(QumuloUtils.SCHEME_SSL);
 		} else {
-			baseUriBuilder.append(SCHEME);
+			baseUriBuilder.append(QumuloUtils.SCHEME);
 		}
 		baseUriBuilder.append("://");
 		baseUriBuilder.append(this.getHost());
@@ -254,29 +249,30 @@ public class QumuloRestGateway {
 	 * 
 	 */
 	public Document getDocumentMetadata(String inUrl) throws IOException, PluginOperationFailedException {
-		
-		
-		String infoUrl = this.getQumuloEndpoint(this.getQumuloRestURL(inUrl),INFO_ENDPOINT);
-		
+
+		String infoUrl = this.getQumuloEndpoint(this.getQumuloRestURL(inUrl), QumuloUtils.INFO_ENDPOINT);
+
 		QumuloFile qFile = this.getQumuloMetadata(infoUrl);
 		if (null == qFile) {
-			throw new PluginOperationFailedException("Failed to get Document Metadata for "+inUrl);
+			throw new PluginOperationFailedException("Failed to get Document Metadata for " + inUrl);
 		}
-		
-		if (qFile.getPath().equals(HTTP_SEPERATOR)) {
-			qFile.setName(HTTP_REST.substring(1,HTTP_REST.length()));
+
+		if (qFile.getPath().equals(QumuloUtils.HTTP_SEPERATOR)) {
+			qFile.setName(QumuloUtils.HTTP_REST.substring(1, QumuloUtils.HTTP_REST.length()));
 		}
 		return getDocument(this.getBaseRestUri() + qFile.getPath(), qFile.getName(),
 				QUMULO_DIRECTORY.equals(qFile.getType()), qFile);
 
 	}
-	
+
 	/**
-	 * @param url,container flag
+	 * @param url,container
+	 *            flag
 	 * @return Document Iterator
 	 * 
-	 *         This method returns the Document Iterator for a given container url.
-	 *         
+	 *         This method returns the Document Iterator for a given container
+	 *         url.
+	 * 
 	 * @throws PluginOperationFailedException
 	 * 
 	 */
@@ -284,7 +280,7 @@ public class QumuloRestGateway {
 			throws PluginOperationFailedException {
 		LinkedList<Document> documentList = new LinkedList<Document>();
 		try {
-			String listUri = this.getQumuloEndpoint(this.getQumuloRestURL(inUri),LISTING_ENDPOINT);
+			String listUri = this.getQumuloEndpoint(this.getQumuloRestURL(inUri), QumuloUtils.LISTING_ENDPOINT);
 			QumuloFilesResultMapper resultMapper = this.getQumuloListing(listUri);
 			if (resultMapper != null) {
 
@@ -309,8 +305,9 @@ public class QumuloRestGateway {
 		}
 
 	}
-    
-	// Extract Qumulo File Metadata from a QumuloFile object to construct a Document.
+
+	// Extract Qumulo File Metadata from a QumuloFile object to construct a
+	// Document.
 	private DocumentBuilder getMetadataFromFile(QumuloFile entry, DocumentBuilder builder) {
 
 		builder.addMetadata(QumuloStandardFields.FILE_CHANGE_TIME,
@@ -341,21 +338,21 @@ public class QumuloRestGateway {
 				StringDocumentFieldValue.builder().setString(entry.getType()).build());
 		return builder;
 	}
-    
+
 	// Convert a URl into Qumulo Standard Rest URL.
-	private String getQumuloRestURL(String url) throws UnsupportedEncodingException {
+	public String getQumuloRestURL(String url) throws UnsupportedEncodingException {
 
 		StringBuilder restUrl = new StringBuilder();
 		String relUri = url.replaceAll(this.getBaseRestUri(), "");
-		if (relUri.trim().isEmpty() || HTTP_SEPERATOR.equals(relUri.trim())) {
+		if (relUri.trim().isEmpty() || QumuloUtils.HTTP_SEPERATOR.equals(relUri.trim())) {
 			// encountered root
 			restUrl.append(this.getFilesBaseURI());
 			return restUrl.toString();
 		}
-		if (relUri.endsWith(HTTP_SEPERATOR)) {
+		if (relUri.endsWith(QumuloUtils.HTTP_SEPERATOR)) {
 			relUri = relUri.substring(0, relUri.length() - 1);
 		}
-		if (relUri.startsWith(HTTP_SEPERATOR)) {
+		if (relUri.startsWith(QumuloUtils.HTTP_SEPERATOR)) {
 			relUri = relUri.substring(1, relUri.length());
 			restUrl.append(this.getFilesBaseURI());
 			String encodedURI = URLEncoder.encode(relUri, StandardCharsets.UTF_8.toString());
@@ -363,7 +360,7 @@ public class QumuloRestGateway {
 		}
 		return restUrl.toString();
 	}
-    
+
 	// Create a document with basic HCI metadata.
 	private Document getDocument(String url, String name, Boolean isContainer, QumuloFile entry) throws IOException {
 
@@ -378,7 +375,8 @@ public class QumuloRestGateway {
 		builder.addMetadata(StandardFields.URI, StringDocumentFieldValue.builder().setString(url).build());
 		builder.addMetadata(StandardFields.DISPLAY_NAME, StringDocumentFieldValue.builder().setString(name).build());
 		builder.addMetadata(StandardFields.VERSION, StringDocumentFieldValue.builder().setString("1").build());
-		builder.addMetadata(QumuloStandardFields.URL, StringDocumentFieldValue.builder().setString(this.getQumuloRestURL(url)).build());
+		builder.addMetadata(QumuloStandardFields.URL,
+				StringDocumentFieldValue.builder().setString(this.getQumuloRestURL(url)).build());
 		if (entry != null) {
 			builder = getMetadataFromFile(entry, builder);
 		}
@@ -386,27 +384,30 @@ public class QumuloRestGateway {
 
 	}
 
-	public Document getRootDocument(String uri, boolean isContainer) throws IOException, PluginOperationFailedException {
-		if (!uri.endsWith(HTTP_SEPERATOR)) {
-			uri = this.getQumuloEndpoint(uri,HTTP_SEPERATOR);
+	public Document getRootDocument(String uri, boolean isContainer)
+			throws IOException, PluginOperationFailedException {
+		if (!uri.endsWith(QumuloUtils.HTTP_SEPERATOR)) {
+			uri = this.getQumuloEndpoint(uri, QumuloUtils.HTTP_SEPERATOR);
 		}
 		return getDocumentMetadata(this.getQumuloEndpoint(this.getBaseRestUri(), uri));
 	}
-    
-	// Get the Content of a qumulo file as a String , which is later converted into an InputStream and set as HCI_content.
-	public String getContentAsString(String uri) throws IllegalStateException, IOException, PluginOperationFailedException {
-		String datauri = this.getQumuloEndpoint(this.getQumuloRestURL(uri),DATA_ENDPOINT);
+
+	// Get the Content of a qumulo file as a Stream , which is later set as
+	// HCI_content.
+	public InputStream getContentStream(String uri)
+			throws IllegalStateException, IOException, PluginOperationFailedException {
+		String datauri = this.getQumuloEndpoint(this.getQumuloRestURL(uri), QumuloUtils.DATA_ENDPOINT);
 		HttpResponse response = this.qumuloGetOperation(datauri);
-		String data = IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
-		EntityUtils.consume(response.getEntity());
-		if (null == data) {
-			throw new PluginOperationFailedException("Failed to get content for the document " + uri);
+		InputStream stream = response.getEntity().getContent();
+		if (stream == null) {
+			// Return an empty stream
+			stream = new ByteArrayInputStream(QumuloUtils.EMPTY_STRING.getBytes(StandardCharsets.UTF_8));
 		}
-		return data;
+		return stream;
 	}
 
 	private int getPort() {
-		
+
 		return this.iPort;
 	}
 
