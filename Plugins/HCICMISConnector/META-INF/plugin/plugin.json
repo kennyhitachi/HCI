@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.cmis",
+    "description": "CMIS Plugin Bundle",
+    "displayName": "CMIS Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hds.hci.plugins.connector.custom.CMISConnectorPlugin",
+            "pluginName": "com.hds.hci.plugins.connector.custom.cmisConnectorPlugin",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.1.1"
+}
