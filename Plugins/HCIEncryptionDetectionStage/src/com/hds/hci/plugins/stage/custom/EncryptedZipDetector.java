@@ -139,7 +139,6 @@ public class EncryptedZipDetector implements StagePlugin {
 			
 			try {
 				ZipArchiveEntry entry = null;
-				boolean isEncryptExists = false;
 				int fileCount = 0;
 				while ((entry = zipStream.getNextZipEntry()) != null) {
 					if ((entry).getGeneralPurposeBit().usesEncryption()
@@ -147,10 +146,9 @@ public class EncryptedZipDetector implements StagePlugin {
 						
 						encFileList.add(entry.getName());
 						fileCount++;
-						isEncryptExists = true;
 					} 
 				}
-				if (isEncryptExists) {
+				if (fileCount > 0) {
 					
 					docBuilder.setMetadata("$EncryptedZip",
 							BooleanDocumentFieldValue.builder().setBoolean(Boolean.TRUE).build());

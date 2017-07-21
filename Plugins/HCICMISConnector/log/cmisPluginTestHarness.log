@@ -1,0 +1,298 @@
+Microsoft Windows [Version 6.1.7601]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+C:\Users\kkancherla>cd C:\KC\PluginTestHarness\lib\plugin-test
+
+C:\KC\PluginTestHarness\lib\plugin-test>plugin-test.bat -c cmis.conf -j CmisConn
+ector_v1.1.1.jar -p com.hds.hci.plugins.connector.custom.cmisConnectorPlugin
+Picked up JAVA_TOOL_OPTIONS: -Djava.vendor="Sun Microsystems, Inc"
+2017-07-21 12:06:46 INFO   ***************************************
+2017-07-21 12:06:46 INFO   *  HCI Plugin Test Harness: 1.1.0     *
+2017-07-21 12:06:46 INFO   ***************************************
+2017-07-21 12:06:46 INFO   Using config file: cmis.conf
+2017-07-21 12:06:46 INFO   Configured plugin: com.hds.hci.plugins.connector.cust
+om.cmisConnectorPlugin
+2017-07-21 12:06:46 INFO   Testing jar file: CmisConnector_v1.1.1.jar
+2017-07-21 12:06:46 INFO
+2017-07-21 12:06:46 INFO   [Test: Verify plugin bundle manifest(s)]
+2017-07-21 12:06:53 INFO   Discovered plugin bundle display name: 'CMIS Connecto
+r'
+2017-07-21 12:06:53 DEBUG  Discovered plugin bundle version: '1.1.1'
+2017-07-21 12:06:53 DEBUG  Discovered plugin bundle name: 'com.hds.ensemble.plug
+ins.cmis'
+2017-07-21 12:06:53 DEBUG  Discovered plugin bundle description: 'CMIS Plugin Bu
+ndle'
+2017-07-21 12:06:53 DEBUG  Discovered plugin: 'com.hds.hci.plugins.connector.cus
+tom.cmisConnectorPlugin'
+2017-07-21 12:06:53 DEBUG  Successfully parsed plugin bundle manifest
+2017-07-21 12:06:53 DEBUG  Discovered plugin type: 'com.hds.ensemble.sdk.connect
+or.ConnectorPlugin'
+2017-07-21 12:06:53 DEBUG  Discovered plugin name: 'com.hds.hci.plugins.connecto
+r.custom.cmisConnectorPlugin'
+2017-07-21 12:06:53 DEBUG  Discovered plugin class: 'com.hds.hci.plugins.connect
+or.custom.CMISConnectorPlugin'
+2017-07-21 12:06:53 DEBUG  Successfully parsed plugin manifest
+2017-07-21 12:06:53 INFO   [PASSED] Verify plugin bundle manifest(s)
+2017-07-21 12:06:54 INFO
+2017-07-21 12:06:54 INFO   [Test: Analyzing plugin: com.hds.hci.plugins.connecto
+r.custom.CMISConnectorPlugin]
+2017-07-21 12:07:05 INFO   [PASSED] com.hds.hci.plugins.connector.custom.CMISCon
+nectorPlugin
+2017-07-21 12:07:05 INFO
+2017-07-21 12:07:05 INFO   [Test: Test plugin instance: com.hds.hci.plugins.conn
+ector.custom.CMISConnectorPlugin]
+2017-07-21 12:07:10 INFO   [PASSED] com.hds.hci.plugins.connector.custom.CMISCon
+nectorPlugin
+2017-07-21 12:07:10 INFO
+2017-07-21 12:07:10 INFO   [Test: Using plugin instance: com.hds.hci.plugins.con
+nector.custom.CMISConnectorPlugin]
+2017-07-21 12:07:10 DEBUG  Discovered a connector plugin
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.test
+2017-07-21 12:07:10 DEBUG  Session 967c84a4-5a93-4f7d-ab3a-4585f59e150c: Initial
+izing AtomPub SPI...
+2017-07-21 12:07:10 DEBUG  Session 967c84a4-5a93-4f7d-ab3a-4585f59e150c: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: Initial
+izing AtomPub SPI...
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom?
+repositoryId=-default-
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=cmis%3Afolder
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Acm%3Atitled
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Asys%3Alocalized
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Aapp%3Auifacets
+2017-07-21 12:07:10 DEBUG  Session 848aad4e-3172-4aed-98aa-b80b897d79b9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:10 DEBUG  Discovered default config: 'VALID'
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.validateConfig
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.getDescription
+2017-07-21 12:07:10 DEBUG  Discovered description: 'A CMIS connector plugin to c
+rawl repositories on CMIS compliant Applications'
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.getCategory
+2017-07-21 12:07:10 DEBUG  Discovered category: 'CUSTOM'
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.getHost
+2017-07-21 12:07:10 DEBUG  Discovered SSL host: '<null>:<null>'
+2017-07-21 12:07:10 WARN   Note: SSL is not supported by plugin. Implement getHo
+st() and getPort() to support SSL.
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.getSubCategory
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.startSession
+2017-07-21 12:07:10 DEBUG  Session cce20d47-6eba-4640-b66e-42697e8d8c49: Initial
+izing AtomPub SPI...
+2017-07-21 12:07:10 DEBUG  Session cce20d47-6eba-4640-b66e-42697e8d8c49: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: Initial
+izing AtomPub SPI...
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom?
+repositoryId=-default-
+2017-07-21 12:07:10 DEBUG  Discovered plugin session: 'VALID'
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.supports
+2017-07-21 12:07:10 DEBUG  Supports ROOT: true
+2017-07-21 12:07:10 DEBUG  Supports LIST_CONTAINERS: true
+2017-07-21 12:07:10 DEBUG  Supports LIST: true
+2017-07-21 12:07:10 DEBUG  Supports GET_CHANGES: false
+2017-07-21 12:07:10 DEBUG  Supports PUT: false
+2017-07-21 12:07:10 DEBUG  Supports PUT_METADATA: false
+2017-07-21 12:07:10 DEBUG  Supports DELETE: false
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.getMode
+2017-07-21 12:07:10 DEBUG  Connector mode is CRAWL_LIST
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.root
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=cmis%3Afolder
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Acm%3Atitled
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Asys%3Alocalized
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Aapp%3Auifacets
+2017-07-21 12:07:10 DEBUG  Testing ConnectorPlugin.listContainers
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:10 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+children?id=c31f6323-55e9-474d-93f2-be66f137508b&includeAllowableActions=true&in
+cludeRelationships=none&renditionFilter=cmis%3Anone&includePathSegment=true&maxI
+tems=100&skipCount=0
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=F%3Ast%3Asites
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=cmis%3Adocument
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Arn%3Arenditioned
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Aapp%3Ainlineeditable
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Acm%3AfailedThumbnailSource
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+type?id=P%3Acm%3AthumbnailModification
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+parents?id=9a71827b-f50d-4078-8e12-b06dae120edb%3B1.0&filter=cmis%3AobjectId%2Cc
+mis%3Apath&includeAllowableActions=false&includeRelationships=none&includeRelati
+vePathSegment=true
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Testing ConnectorPlugin.list
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+children?id=c31f6323-55e9-474d-93f2-be66f137508b&includeAllowableActions=true&in
+cludeRelationships=none&renditionFilter=cmis%3Anone&includePathSegment=true&maxI
+tems=100&skipCount=0
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+parents?id=9a71827b-f50d-4078-8e12-b06dae120edb%3B1.0&filter=cmis%3AobjectId%2Cc
+mis%3Apath&includeAllowableActions=false&includeRelationships=none&includeRelati
+vePathSegment=true
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Testing ConnectorPlugin.getMetadata
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+path?path=%2Ftest2.txt&filter=&includeAllowableActions=true&includeACL=false&inc
+ludePolicyIds=false&includeRelationships=none&renditionFilter=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Comparing document fields: list vs. getMetadata
+2017-07-21 12:07:11 DEBUG  Successfully compared Document fields from: list vs.
+getMetadata
+2017-07-21 12:07:11 DEBUG  Comparing document streams: list vs. getMetadata
+2017-07-21 12:07:11 DEBUG  Successfully compared Document streams from: list vs.
+ getMetadata
+2017-07-21 12:07:11 DEBUG  Comparing document fields: getMetadata vs. list
+2017-07-21 12:07:11 DEBUG  Successfully compared Document fields from: getMetada
+ta vs. list
+2017-07-21 12:07:11 DEBUG  Comparing document streams: getMetadata vs. list
+2017-07-21 12:07:11 DEBUG  Successfully compared Document streams from: getMetad
+ata vs. list
+2017-07-21 12:07:11 DEBUG  Testing ConnectorPlugin.get
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+id?id=c31f6323-55e9-474d-93f2-be66f137508b&filter=&includeAllowableActions=true&
+includeACL=false&includePolicyIds=false&includeRelationships=none&renditionFilte
+r=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+path?path=%2Ftest2.txt&filter=&includeAllowableActions=true&includeACL=false&inc
+ludePolicyIds=false&includeRelationships=none&renditionFilter=cmis%3Anone
+2017-07-21 12:07:11 DEBUG  Session 1b85ee23-5ac7-4e5c-bf86-b120984b9db9: GET htt
+p://localalfresco.com:8080/alfresco/api/-default-/public/cmis/versions/1.1/atom/
+content/test2.txt?id=9a71827b-f50d-4078-8e12-b06dae120edb%3B1.0
+2017-07-21 12:07:11 DEBUG  Successfully read document stream
+2017-07-21 12:07:11 INFO   [PASSED] com.hds.hci.plugins.connector.custom.CMISCon
+nectorPlugin
+2017-07-21 12:07:11 INFO
+2017-07-21 12:07:11 INFO   ********* Success *********
+2017-07-21 12:07:11 INFO

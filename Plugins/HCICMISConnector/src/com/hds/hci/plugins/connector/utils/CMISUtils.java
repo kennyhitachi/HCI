@@ -19,6 +19,11 @@ public class CMISUtils {
 	// CMIS Directory and File Identifiers.
 	public static final String CMIS_DIRECTORY = "CMIS_FOLDER";
 	public static final String CMIS_FILE = "CMIS_DOCUMENT";
+	public static final String CMIS_ITEM = "CMIS_ITEM";
+	
+	public static final String CMIS_RELATIONSHIP = "CMIS_RELATIONSHIP";
+	public static final String CMIS_POLICY = "CMIS_POLICY";
+	public static final String CMIS_SECONDARY = "CMIS_SECONDARY";
 	
 	public static final String EMPTY_STRING = "";
 	public static final Object ROOT = "root";

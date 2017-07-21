@@ -46,42 +46,39 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 	private static final String DESCRIPTION = "A CMIS connector plugin to crawl repositories on CMIS compliant Applications";
 
 	private static final String SUBCATEGORY_EXAMPLE = "Custom";
-	
+
 	private final PluginCallback callback;
 	private final PluginConfig config;
-    
-	 private static List<String> selectOptions = new ArrayList<>();
 
-	    static {
-	        selectOptions.add(CMISUtils.ATOMPUB);
-	        selectOptions.add(CMISUtils.BROWSER);
-	    }
+	private static List<String> selectOptions = new ArrayList<>();
 
-	    public static final ConfigProperty.Builder SELECT_BINDING = new ConfigProperty.Builder()
-	            .setName("hci.binding")
-	            .setType(PropertyType.SELECT)
-	            .setOptions(selectOptions)
-	            .setValue(selectOptions.get(1))
-	            .setRequired(true)
-	            .setUserVisibleName("Binding Type")
-	            .setUserVisibleDescription("Select the appropriate binding type to connect to the CMIS repository");
-	    
-	    // ATOM PUB URL text field
-		public static final ConfigProperty.Builder BINDING_URL = new ConfigProperty.Builder().setName("hci.url").setValue("")
-				.setType(PropertyType.TEXT).setRequired(true).setUserVisibleName("Binding Url")
-				.setUserVisibleDescription("AtomPub or Browser Url to connect to the repository");
-    
-	//Root Directory Text Field
+	static {
+		selectOptions.add(CMISUtils.ATOMPUB);
+		selectOptions.add(CMISUtils.BROWSER);
+	}
+
+	public static final ConfigProperty.Builder SELECT_BINDING = new ConfigProperty.Builder().setName("hci.binding")
+			.setType(PropertyType.SELECT).setOptions(selectOptions).setValue(selectOptions.get(1)).setRequired(true)
+			.setUserVisibleName("Binding Type")
+			.setUserVisibleDescription("Select the appropriate binding type to connect to the CMIS repository");
+
+	// ATOM PUB URL text field
+	public static final ConfigProperty.Builder BINDING_URL = new ConfigProperty.Builder().setName("hci.url")
+			.setValue("").setType(PropertyType.TEXT).setRequired(true).setUserVisibleName("Binding Url")
+			.setUserVisibleDescription("AtomPub or Browser Url to connect to the repository");
+
+	// Root Directory Text Field
 	public static final ConfigProperty.Builder ROOT_DIR = new ConfigProperty.Builder().setName("hci.root.dir")
 			.setValue("/").setType(PropertyType.TEXT).setRequired(true).setUserVisibleName("Root Directory")
-			.setUserVisibleDescription("Specify Root Directory to start from. Ex: ('/dir1/dir2') where '/' is the root diectory");
-	
-	//UserName Text Field
+			.setUserVisibleDescription(
+					"Specify Root Directory to start from. Ex: ('/dir1/dir2') where '/' is the root diectory");
+
+	// UserName Text Field
 	public static final ConfigProperty.Builder USER_NAME = new ConfigProperty.Builder().setName("hci.user").setValue("")
 			.setType(PropertyType.TEXT).setRequired(true).setUserVisibleName("User Name")
 			.setUserVisibleDescription("User Name");
-	
-    //Password Text Field
+
+	// Password Text Field
 	public static final ConfigProperty.Builder PASSWORD = new ConfigProperty.Builder().setName("hci.password")
 			.setType(PropertyType.PASSWORD).setValue("letmein").setRequired(true).setUserVisibleName("Password")
 			.setUserVisibleDescription("Password");
@@ -95,8 +92,8 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 		cmisGroupProperties.add(USER_NAME);
 		cmisGroupProperties.add(PASSWORD);
 	}
-	
-    //CMIS Group Settings
+
+	// CMIS Group Settings
 	public static final ConfigPropertyGroup.Builder CMIS_SETTINGS = new ConfigPropertyGroup.Builder("CMIS Settings",
 			null).setType(PropertyGroupType.DEFAULT).setConfigProperties(cmisGroupProperties);
 
@@ -111,25 +108,27 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 		this.callback = callback;
 		this.config = config;
 	}
-    
-	//Basic Validation of fields and additional validation for PORT and ROOT DIR
+
+	// Basic Validation of fields and additional validation for PORT and ROOT
+	// DIR
 	@Override
 	public void validateConfig(PluginConfig config) throws ConfigurationException {
 
-		
 		if (config.getPropertyValue(ROOT_DIR.getName()) == null) {
 			throw new ConfigurationException("Missing Property ROOT Directory");
 		}
-		if (config.getPropertyValue(SELECT_BINDING.getName()) == null || config.getPropertyValue(SELECT_BINDING.getName()).isEmpty()) {
+		if (config.getPropertyValue(SELECT_BINDING.getName()) == null
+				|| config.getPropertyValue(SELECT_BINDING.getName()).isEmpty()) {
 			throw new ConfigurationException("Select a Binding Property");
 		}
-		
+
 		if (config.getPropertyValue(BINDING_URL.getName()) == null) {
 			throw new ConfigurationException("Missing Binding Url.");
 		}
-		
+
 		if (!config.getPropertyValue(ROOT_DIR.getName()).startsWith("/")) {
-			throw new ConfigurationException("Invalid ROOT directory specified. Must Start from the base root dir ('/').");
+			throw new ConfigurationException(
+					"Invalid ROOT directory specified. Must Start from the base root dir ('/').");
 		}
 		if (config.getPropertyValue(USER_NAME.getName()) == null) {
 			throw new ConfigurationException("Missing Property User Name");
@@ -138,8 +137,7 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 			throw new ConfigurationException("Missing Property Password");
 		}
 	}
-    
-	
+
 	@Override
 	public CMISConnectorPlugin build(PluginConfig config, PluginCallback callback) throws ConfigurationException {
 		validateConfig(config);
@@ -165,8 +163,8 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 	public PluginConfig getDefaultConfig() {
 		return DEFAULT_CONFIG;
 	}
-    
-	//Get an instance of a cmis Session
+
+	// Get an instance of a cmis Session
 	private CMISPluginSession getCMISPluginSession(PluginSession session) {
 		if (!(session instanceof CMISPluginSession)) {
 			throw new PluginOperationRuntimeException("PluginSession is not an instance of CMISPluginSession", null);
@@ -181,7 +179,7 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 
 	@Override
 	public String getHost() {
-		
+
 		return null;
 	}
 
@@ -189,67 +187,69 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 	public Integer getPort() {
 		return null;
 	}
-    
+
 	// Get Root Document.
 	@Override
 	public Document root(PluginSession session) throws PluginOperationFailedException {
 		CMISPluginSession myPluginSession = getCMISPluginSession(session);
 		return myPluginSession.getRootDocument();
 	}
-	
-    /***
-     * List documents for  directories only.
-     * 
-     * E.g  if /Folder is the root directory specified and the directory structure  is as follows:
-     * 
-     * /Folder/SubFolder1
-     * /Folder/Subfolder2
-     * /file.txt
-     * 
-     * This method should return only documents for SubFolder1 and SubFolder2.
-     * 
-     * For additional information refer to the sdk documentation for ConnectorPlugin interface.
-     */
+
+	/***
+	 * List documents for directories only.
+	 * 
+	 * E.g if /Folder is the root directory specified and the directory
+	 * structure is as follows:
+	 * 
+	 * /Folder/SubFolder1 /Folder/Subfolder2 /file.txt
+	 * 
+	 * This method should return only documents for SubFolder1 and SubFolder2.
+	 * 
+	 * For additional information refer to the sdk documentation for
+	 * ConnectorPlugin interface.
+	 */
 	@Override
 	public Iterator<Document> listContainers(PluginSession session, Document startDocument)
 			throws PluginOperationFailedException {
 		CMISPluginSession myPluginSession = getCMISPluginSession(session);
 		return myPluginSession.listContainers(startDocument);
 	}
-    
+
 	/***
-     * List documents for directories and files.
-     * 
-     * E.g  if /Folder is the root directory specified and the directory structure  is as follows:
-     * 
-     * /Folder/SubFolder1
-     * /Folder/Subfolder2
-     * /file.txt
-     * 
-     * This method should return documents for SubFolder1 , SubFolder2 and file.txt
-     * 
-     * For additional information refer to the sdk documentation for ConnectorPlugin interface.
-     */
+	 * List documents for directories and files.
+	 * 
+	 * E.g if /Folder is the root directory specified and the directory
+	 * structure is as follows:
+	 * 
+	 * /Folder/SubFolder1 /Folder/Subfolder2 /file.txt
+	 * 
+	 * This method should return documents for SubFolder1 , SubFolder2 and
+	 * file.txt
+	 * 
+	 * For additional information refer to the sdk documentation for
+	 * ConnectorPlugin interface.
+	 */
 	@Override
 	public Iterator<Document> list(PluginSession session, Document startDocument)
 			throws PluginOperationFailedException {
 		CMISPluginSession myPluginSession = getCMISPluginSession(session);
 		return myPluginSession.list(startDocument);
 	}
-	
+
 	/***
-     * Get Metadata for a single entry. The entry could be a directory or a file.
-     * 
-     * E.g  Get the metadata for a root directory.
-     * 
-     */
+	 * Get Metadata for a single entry. The entry could be a directory or a
+	 * file.
+	 * 
+	 * E.g Get the metadata for a root directory.
+	 * 
+	 */
 
 	@Override
 	public Document getMetadata(PluginSession session, URI uri) throws PluginOperationFailedException {
 		CMISPluginSession myPluginSession = getCMISPluginSession(session);
 		return myPluginSession.getMetadata(uri);
 	}
-    
+
 	// Get the content stream for a given document.
 	@Override
 	public InputStream get(PluginSession session, URI uri) throws PluginOperationFailedException {
@@ -279,27 +279,27 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 
 		return ConnectorMode.CRAWL_LIST;
 	}
-    
+
 	// Not implemented as this is a CRAWL Based connector.
 	@Override
 	public DocumentPagedResults getChanges(PluginSession pluginSession, String eventToken)
 			throws ConfigurationException, PluginOperationFailedException {
 		throw new PluginOperationFailedException("Operation not supported");
 	}
-    
+
 	/***
-     * Perform additional validations like:
-     *  - check if the user specified a root directory that actually exists on the Filesystem
-     *  - validate username and password combo to obtain an access token.
-     *  - validate if the user specified an invalid hostname.
-     */
+	 * Perform additional validations like: - check if the user specified a root
+	 * directory that actually exists on the Filesystem - validate username and
+	 * password combo to obtain an access token. - validate if the user
+	 * specified an invalid hostname.
+	 */
 	@Override
 	public void test(PluginSession pluginSession) throws ConfigurationException, PluginOperationFailedException {
-		
+
 		try {
-			CMISPluginSession qumuloSession = getCMISPluginSession(pluginSession);
+			CMISPluginSession cmisSession = getCMISPluginSession(pluginSession);
 			try {
-				qumuloSession.getRootDocument();
+				cmisSession.getRootDocument();
 			} catch (Exception e) {
 				throw new ConfigurationException("Invalid Root Directory Specified");
 			}
@@ -327,40 +327,39 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 		PluginCallback callback;
 		CMISGateway cmisGateway;
 		PluginConfig config;
-        
+
 		// Create a CMIS Plugin session.
-		CMISPluginSession(PluginCallback callback, PluginConfig config) throws PluginOperationFailedException, ConfigurationException {
+		CMISPluginSession(PluginCallback callback, PluginConfig config)
+				throws PluginOperationFailedException, ConfigurationException {
 
 			this.config = config;
 			this.callback = callback;
-			
+
 			String url = this.config.getPropertyValue(BINDING_URL.getName());
-			String hostname="";
+			String hostname = "";
 			try {
-			 URI uri = new URI(url);
-			 hostname = uri.getHost();
-			    if (hostname != null) {
-			        hostname = hostname.startsWith("www.") ? hostname.substring(4) : hostname;
-			    }
-			
+				URI uri = new URI(url);
+				hostname = uri.getHost();
+				if (hostname != null) {
+					hostname = hostname.startsWith("www.") ? hostname.substring(4) : hostname;
+				}
+
 				InetAddress.getByName(hostname);
 			} catch (Exception ex) {
-				throw new ConfigurationException("Unable to resolve hostname: "+ hostname,
-						(Throwable) ex);
+				throw new ConfigurationException("Unable to resolve hostname: " + hostname, (Throwable) ex);
 			}
 			// Initialize the CMIS Gateway.
 			try {
-				this.cmisGateway = new CMISGateway(url,
-						this.config.getPropertyValue(USER_NAME.getName()),
+				this.cmisGateway = new CMISGateway(url, this.config.getPropertyValue(USER_NAME.getName()),
 						this.config.getPropertyValue(PASSWORD.getName()),
-						this.config.getPropertyValue(SELECT_BINDING.getName()),this.callback);
+						this.config.getPropertyValue(SELECT_BINDING.getName()), this.callback);
 				Session cmisSession = this.cmisGateway.getCMISSession();
-				if (cmisSession == null){
+				if (cmisSession == null) {
 					throw new ConfigurationException("Unable to establish a session with the given parameters");
 				}
 			} catch (Exception e) {
-				throw new PluginOperationFailedException("Unable to connect to CMIS Repository. "
-						+ "Please verify the Binding Url", (Throwable) e);
+				throw new PluginOperationFailedException(
+						"Unable to connect to CMIS Repository. " + "Please verify the Binding Url", (Throwable) e);
 			}
 
 		}
@@ -369,31 +368,33 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 		public void close() {
 
 		}
-        
+
 		// Get a Document for the root directory.
 		public Document getRootDocument() throws PluginOperationFailedException {
 			String rootUri = this.config.getPropertyValueOrDefault(ROOT_DIR.getName(), "/");
 			try {
-
-				return this.getCMISGateway().getRootDocument(rootUri, true);
+				Document rootDocument = this.getCMISGateway().getRootDocument(rootUri);
+				if (!rootDocument.isContainer()) {
+					throw new ConfigurationException("Root must be a container");
+				}
+				return rootDocument;
 			} catch (Exception e) {
-				throw new PluginOperationFailedException("Unable to browse root Directory: "+rootUri, (Throwable) e);
+				throw new PluginOperationFailedException("Unable to browse root Directory: " + rootUri, (Throwable) e);
 			}
 		}
-        
+
 		// Implement listContainers in the REST Gateway.
 		public Iterator<Document> listContainers(Document startDocument) throws PluginOperationFailedException {
 			String url = startDocument.getUri();
 			return this.getCMISGateway().getDocumentList(url, true);
 		}
-        
+
 		// Implement getMetaData in the REST Gateway.
 		public Document getMetadata(URI uri) throws PluginOperationFailedException {
 			try {
 				return this.getCMISGateway().getDocumentMetadata(uri.toString());
 			} catch (Exception e) {
-				throw new PluginOperationFailedException("Unable to get metadata for: "+uri,
-						(Throwable) e);
+				throw new PluginOperationFailedException("Unable to get metadata for: " + uri, (Throwable) e);
 			}
 		}
 
@@ -401,8 +402,7 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 			try {
 				return this.getCMISGateway().getContentStream(uri.toString());
 			} catch (IllegalStateException | IOException e) {
-				throw new PluginOperationFailedException("Unable to get content stream for: "+uri,
-						(Throwable) e);
+				throw new PluginOperationFailedException("Unable to get content stream for: " + uri, (Throwable) e);
 			}
 		}
 
@@ -417,11 +417,11 @@ public class CMISConnectorPlugin implements ConnectorPlugin {
 				}
 				return null;
 			} catch (URISyntaxException ex) {
-				throw new ConfigurationException("Failed to Failed to Open Content Stream for "+uriString, (Throwable) ex);
+				throw new ConfigurationException("Failed to Open Content Stream for " + uriString, (Throwable) ex);
 			}
 		}
-        
-		// Implement list in the C Gateway.
+
+		// Implement list in the CMIS Gateway.
 		public Iterator<Document> list(Document startDocument) throws PluginOperationFailedException {
 			String url = startDocument.getUri();
 			return this.getCMISGateway().getDocumentList(url, false);

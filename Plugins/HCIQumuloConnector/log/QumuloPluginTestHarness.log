@@ -1,0 +1,103 @@
+
+C:\KC\PluginTestHarness\lib\plugin-test>plugin-test.bat -c qumulo.conf -j Qumulo
+Connector_v3.0.7.jar -p com.hds.hci.plugins.connector.custom.qumuloConnector
+Picked up JAVA_TOOL_OPTIONS: -Djava.vendor="Sun Microsystems, Inc"
+2017-06-28 10:17:34 INFO   ***************************************
+2017-06-28 10:17:34 INFO   *  HCI Plugin Test Harness: 1.1.0     *
+2017-06-28 10:17:34 INFO   ***************************************
+2017-06-28 10:17:34 INFO   Using config file: qumulo.conf
+2017-06-28 10:17:34 INFO   Configured plugin: com.hds.hci.plugins.connector.cust
+om.qumuloConnector
+2017-06-28 10:17:34 INFO   Testing jar file: QumuloConnector_v3.0.7.jar
+2017-06-28 10:17:34 INFO
+2017-06-28 10:17:34 INFO   [Test: Verify plugin bundle manifest(s)]
+2017-06-28 10:17:36 INFO   Discovered plugin bundle display name: 'Qumulo Connec
+tor'
+2017-06-28 10:17:36 DEBUG  Discovered plugin bundle version: '3.0.7'
+2017-06-28 10:17:36 DEBUG  Discovered plugin bundle name: 'com.hds.ensemble.plug
+ins.qumulo'
+2017-06-28 10:17:36 DEBUG  Discovered plugin bundle description: 'Qumulo Connect
+or Plugin'
+2017-06-28 10:17:36 DEBUG  Discovered plugin: 'com.hds.hci.plugins.connector.cus
+tom.qumuloConnector'
+2017-06-28 10:17:36 DEBUG  Successfully parsed plugin bundle manifest
+2017-06-28 10:17:36 DEBUG  Discovered plugin type: 'com.hds.ensemble.sdk.connect
+or.ConnectorPlugin'
+2017-06-28 10:17:36 DEBUG  Discovered plugin name: 'com.hds.hci.plugins.connecto
+r.custom.qumuloConnector'
+2017-06-28 10:17:36 DEBUG  Discovered plugin class: 'com.hds.hci.plugins.connect
+or.custom.QumuloConnectorPlugin'
+2017-06-28 10:17:36 DEBUG  Successfully parsed plugin manifest
+2017-06-28 10:17:36 INFO   [PASSED] Verify plugin bundle manifest(s)
+2017-06-28 10:17:37 INFO
+2017-06-28 10:17:37 INFO   [Test: Analyzing plugin: com.hds.hci.plugins.connecto
+r.custom.QumuloConnectorPlugin]
+2017-06-28 10:17:41 INFO   [PASSED] com.hds.hci.plugins.connector.custom.QumuloC
+onnectorPlugin
+2017-06-28 10:17:41 INFO
+2017-06-28 10:17:41 INFO   [Test: Test plugin instance: com.hds.hci.plugins.conn
+ector.custom.QumuloConnectorPlugin]
+2017-06-28 10:17:41 INFO   [PASSED] com.hds.hci.plugins.connector.custom.QumuloC
+onnectorPlugin
+2017-06-28 10:17:41 INFO
+2017-06-28 10:17:41 INFO   [Test: Using plugin instance: com.hds.hci.plugins.con
+nector.custom.QumuloConnectorPlugin]
+2017-06-28 10:17:41 DEBUG  Discovered a connector plugin
+2017-06-28 10:17:41 DEBUG  Testing ConnectorPlugin.test
+HTTP/1.1 200 OK
+Date: Wed, 28 Jun 2017 15:17:44 GMT
+Content-Type: application/json
+Content-Length: 316
+HTTP/1.1 200 OK
+Date: Wed, 28 Jun 2017 15:17:44 GMT
+Content-Type: application/json
+Content-Length: 316
+2017-06-28 10:17:42 DEBUG  Discovered default config: 'VALID'
+2017-06-28 10:17:42 DEBUG  Testing ConnectorPlugin.validateConfig
+2017-06-28 10:17:42 DEBUG  Testing ConnectorPlugin.getDescription
+2017-06-28 10:17:42 DEBUG  Discovered description: 'A Qumulo connector plugin to
+ crawl Qumulo FilesySystems'
+2017-06-28 10:17:42 DEBUG  Testing ConnectorPlugin.getCategory
+2017-06-28 10:17:42 DEBUG  Discovered category: 'CUSTOM'
+2017-06-28 10:17:42 DEBUG  Testing ConnectorPlugin.getHost
+2017-06-28 10:17:42 DEBUG  Discovered SSL host: 'qumulo.ilab.virtual.com:8000'
+2017-06-28 10:17:42 DEBUG  Testing ConnectorPlugin.getSubCategory
+2017-06-28 10:17:42 DEBUG  Testing ConnectorPlugin.startSession
+HTTP/1.1 200 OK
+Date: Wed, 28 Jun 2017 15:17:44 GMT
+Content-Type: application/json
+Content-Length: 316
+2017-06-28 10:17:43 DEBUG  Discovered plugin session: 'VALID'
+2017-06-28 10:17:43 DEBUG  Testing ConnectorPlugin.supports
+2017-06-28 10:17:43 DEBUG  Supports ROOT: true
+2017-06-28 10:17:43 DEBUG  Supports LIST_CONTAINERS: true
+2017-06-28 10:17:43 DEBUG  Supports LIST: true
+2017-06-28 10:17:43 DEBUG  Supports GET_CHANGES: false
+2017-06-28 10:17:43 DEBUG  Supports PUT: false
+2017-06-28 10:17:43 DEBUG  Supports PUT_METADATA: false
+2017-06-28 10:17:43 DEBUG  Supports DELETE: false
+2017-06-28 10:17:43 DEBUG  Testing ConnectorPlugin.getMode
+2017-06-28 10:17:43 DEBUG  Connector mode is CRAWL_LIST
+2017-06-28 10:17:43 DEBUG  Testing ConnectorPlugin.root
+2017-06-28 10:17:43 DEBUG  Testing ConnectorPlugin.listContainers
+Incoming URI: https://qumulo.ilab.virtual.com:8000/v1/files/%2F/entries/
+2017-06-28 10:17:43 DEBUG  Testing ConnectorPlugin.list
+Incoming URI: https://qumulo.ilab.virtual.com:8000/v1/files/%2F/entries/
+Incoming URI: https://qumulo.ilab.virtual.com:8000/v1/files/%2FARUP/entries/
+Incoming URI: https://qumulo.ilab.virtual.com:8000/v1/files/%2FARUP%2Fhome/entri
+es/
+2017-06-28 10:17:44 WARN   *** Recommendation *** : Configure the plugin test ha
+rness to read a data source with 1 or more Documents.
+2017-06-28 10:17:44 WARN   List iterator returned 0 document(s)
+2017-06-28 10:17:44 INFO   [PASSED] com.hds.hci.plugins.connector.custom.QumuloC
+onnectorPlugin
+2017-06-28 10:17:44 INFO
+2017-06-28 10:17:44 INFO   ********* Success *********
+2017-06-28 10:17:44 WARN   Found 1 recommendation(s):
+2017-06-28 10:17:44 WARN
+2017-06-28 10:17:44 WARN       Configure the plugin test harness to read a data
+source with 1 or more Documents.
+2017-06-28 10:17:44 WARN
+2017-06-28 10:17:44 INFO
+
+C:\KC\PluginTestHarness\lib\plugin-test>

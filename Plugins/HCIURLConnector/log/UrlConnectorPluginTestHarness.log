@@ -1,0 +1,96 @@
+
+C:\KC\PluginTestHarness\lib\plugin-test>plugin-test.bat -c urlConnector.conf -j
+UrlConnector_v1.2.0.jar -p com.hds.hci.plugins.connector.custom.urlconnector
+Picked up JAVA_TOOL_OPTIONS: -Djava.vendor="Sun Microsystems, Inc"
+2017-06-28 11:00:09 INFO   ***************************************
+2017-06-28 11:00:09 INFO   *  HCI Plugin Test Harness: 1.1.0     *
+2017-06-28 11:00:09 INFO   ***************************************
+2017-06-28 11:00:09 INFO   Using config file: urlConnector.conf
+2017-06-28 11:00:09 INFO   Configured plugin: com.hds.hci.plugins.connector.cust
+om.urlconnector
+2017-06-28 11:00:09 INFO   Testing jar file: UrlConnector_v1.2.0.jar
+2017-06-28 11:00:09 INFO
+2017-06-28 11:00:09 INFO   [Test: Verify plugin bundle manifest(s)]
+2017-06-28 11:00:12 INFO   Discovered plugin bundle display name: 'Url Connector
+'
+2017-06-28 11:00:12 DEBUG  Discovered plugin bundle version: '1.2.0'
+2017-06-28 11:00:12 DEBUG  Discovered plugin bundle name: 'com.hds.ensemble.plug
+ins.custom'
+2017-06-28 11:00:12 DEBUG  Discovered plugin bundle description: 'Url Connector
+Plugin'
+2017-06-28 11:00:12 DEBUG  Discovered plugin: 'com.hds.hci.plugins.connector.cus
+tom.urlconnector'
+2017-06-28 11:00:12 DEBUG  Successfully parsed plugin bundle manifest
+2017-06-28 11:00:12 DEBUG  Discovered plugin type: 'com.hds.ensemble.sdk.connect
+or.ConnectorPlugin'
+2017-06-28 11:00:12 DEBUG  Discovered plugin name: 'com.hds.hci.plugins.connecto
+r.custom.urlconnector'
+2017-06-28 11:00:12 DEBUG  Discovered plugin class: 'com.hds.hci.plugins.connect
+or.custom.URLConnectorPlugin'
+2017-06-28 11:00:12 DEBUG  Successfully parsed plugin manifest
+2017-06-28 11:00:12 INFO   [PASSED] Verify plugin bundle manifest(s)
+2017-06-28 11:00:12 INFO
+2017-06-28 11:00:12 INFO   [Test: Analyzing plugin: com.hds.hci.plugins.connecto
+r.custom.URLConnectorPlugin]
+2017-06-28 11:00:17 INFO   [PASSED] com.hds.hci.plugins.connector.custom.URLConn
+ectorPlugin
+2017-06-28 11:00:17 INFO
+2017-06-28 11:00:17 INFO   [Test: Test plugin instance: com.hds.hci.plugins.conn
+ector.custom.URLConnectorPlugin]
+2017-06-28 11:00:17 INFO   [PASSED] com.hds.hci.plugins.connector.custom.URLConn
+ectorPlugin
+2017-06-28 11:00:17 INFO
+2017-06-28 11:00:17 INFO   [Test: Using plugin instance: com.hds.hci.plugins.con
+nector.custom.URLConnectorPlugin]
+2017-06-28 11:00:17 DEBUG  Discovered a connector plugin
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.test
+2017-06-28 11:00:17 DEBUG  Discovered default config: 'VALID'
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.validateConfig
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.getDescription
+2017-06-28 11:00:17 DEBUG  Discovered description: 'An example URL connector plu
+gin intended as a starting point for development'
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.getCategory
+2017-06-28 11:00:17 DEBUG  Discovered category: 'CUSTOM'
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.getHost
+2017-06-28 11:00:17 DEBUG  Discovered SSL host: '<null>:<null>'
+2017-06-28 11:00:17 WARN   Note: SSL is not supported by plugin. Implement getHo
+st() and getPort() to support SSL.
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.getSubCategory
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.startSession
+2017-06-28 11:00:17 DEBUG  Discovered plugin session: 'VALID'
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.supports
+2017-06-28 11:00:17 DEBUG  Supports ROOT: true
+2017-06-28 11:00:17 DEBUG  Supports LIST_CONTAINERS: true
+2017-06-28 11:00:17 DEBUG  Supports LIST: true
+2017-06-28 11:00:17 DEBUG  Supports GET_CHANGES: false
+2017-06-28 11:00:17 DEBUG  Supports PUT: false
+2017-06-28 11:00:17 DEBUG  Supports PUT_METADATA: false
+2017-06-28 11:00:17 DEBUG  Supports DELETE: false
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.getMode
+2017-06-28 11:00:17 DEBUG  Connector mode is CRAWL_LIST
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.root
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.listContainers
+2017-06-28 11:00:17 WARN   List container iterator returned 0 document(s)
+2017-06-28 11:00:17 DEBUG  Testing ConnectorPlugin.list
+2017-06-28 11:00:36 DEBUG  Testing ConnectorPlugin.getMetadata
+2017-06-28 11:00:36 DEBUG  Comparing document fields: list vs. getMetadata
+2017-06-28 11:00:36 DEBUG  Successfully compared Document fields from: list vs.
+getMetadata
+2017-06-28 11:00:36 DEBUG  Comparing document streams: list vs. getMetadata
+2017-06-28 11:00:36 DEBUG  Successfully compared Document streams from: list vs.
+ getMetadata
+2017-06-28 11:00:36 DEBUG  Comparing document fields: getMetadata vs. list
+2017-06-28 11:00:36 DEBUG  Successfully compared Document fields from: getMetada
+ta vs. list
+2017-06-28 11:00:36 DEBUG  Comparing document streams: getMetadata vs. list
+2017-06-28 11:00:36 DEBUG  Successfully compared Document streams from: getMetad
+ata vs. list
+2017-06-28 11:00:36 DEBUG  Testing ConnectorPlugin.get
+2017-06-28 11:00:36 DEBUG  Successfully read document stream
+2017-06-28 11:00:36 INFO   [PASSED] com.hds.hci.plugins.connector.custom.URLConn
+ectorPlugin
+2017-06-28 11:00:36 INFO
+2017-06-28 11:00:36 INFO   ********* Success *********
+2017-06-28 11:00:36 INFO
+
+C:\KC\PluginTestHarness\lib\plugin-test>
