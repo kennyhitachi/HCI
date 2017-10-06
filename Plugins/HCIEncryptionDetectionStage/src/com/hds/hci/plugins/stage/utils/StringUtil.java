@@ -6,8 +6,9 @@ public class StringUtil {
 		String outFileName="";
 		if (inFileName.indexOf(".") > 0) {
 			outFileName = inFileName.substring(0, inFileName.lastIndexOf("."));
+			return outFileName;
 		}
-		return outFileName;
+		return inFileName;
 	}
 
 }

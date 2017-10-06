@@ -8,6 +8,53 @@
 
 package com.hds.hci.plugins.connector.utils;
 
+/***
+ * 
+ * @author kkancherla
+ * Sample json
+ *{
+    "file_number": "2", 
+    "major_minor_numbers": {
+        "major": 0, 
+        "minor": 0
+    }, 
+    "num_links": 6, 
+    "creation_time": "2017-02-27T21:15:13.805254983Z", 
+    "owner": "500", 
+    "id": "2", 
+    "size": "8192", 
+    "group": "513", 
+    "extended_attributes": {
+        "read_only": false, 
+        "temporary": false, 
+        "system": false, 
+        "compressed": false, 
+        "not_content_indexed": false, 
+        "hidden": false, 
+        "archive": false
+    }, 
+    "owner_details": {
+        "id_type": "LOCAL_USER", 
+        "id_value": "admin"
+    }, 
+    "metablocks": "1", 
+    "child_count": 16, 
+    "group_details": {
+        "id_type": "LOCAL_GROUP", 
+        "id_value": "Users"
+    }, 
+    "type": "FS_FILE_TYPE_DIRECTORY", 
+    "datablocks": "0", 
+    "blocks": "1", 
+    "modification_time": "2017-08-22T23:17:39.671470385Z", 
+    "path": "/", 
+    "name": "", 
+    "change_time": "2017-08-22T23:17:39.671470385Z", 
+    "mode": "0777", 
+    "symlink_target_type": "FS_FILE_TYPE_UNKNOWN"
+}
+ */
+
 public class QumuloFile {
 	private String path;
     private String name;
@@ -15,6 +62,7 @@ public class QumuloFile {
     private String type;
     private String symlink_target_type;
     private String file_number;
+    private QumuloMajorMinor major_minor_numbers;
     private String id;
     private String mode;
     private String owner;
@@ -160,6 +208,18 @@ public class QumuloFile {
 	}
 	public void setExtended_attributes(QumuloExtendedAttributes extended_attributes) {
 		this.extended_attributes = extended_attributes;
+	}
+	/**
+	 * @return the major_minor_numbers
+	 */
+	public QumuloMajorMinor getMajor_minor_numbers() {
+		return major_minor_numbers;
+	}
+	/**
+	 * @param major_minor_numbers the major_minor_numbers to set
+	 */
+	public void setMajor_minor_numbers(QumuloMajorMinor major_minor_numbers) {
+		this.major_minor_numbers = major_minor_numbers;
 	}
       
 }

@@ -2,7 +2,7 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="lib" path="/home/kkancherla/Customers/HCI/HCI-1.1/HCI-Plugin-SDK/lib/plugin-sdk-1.1.2.27.jar"/>
-	<classpathentry kind="lib" path="/home/kkancherla/Downloads/tika-app-1.14.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/HCI-1.2.0.82 (2)/1.2.0.82/plugins/extract-1.2.0.82.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Customers/HCI/HCI-1.1/HCI-Plugin-SDK/lib/plugin-sdk-1.1.2.27.jar" sourcepath="/HCIPlugins/javadoc/plugin-sdk-1.1.2.27-javadoc.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

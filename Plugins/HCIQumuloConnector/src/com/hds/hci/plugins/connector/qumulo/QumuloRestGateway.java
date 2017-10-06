@@ -27,6 +27,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.util.EntityUtils;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hds.ensemble.sdk.exception.PluginOperationFailedException;
 import com.hds.ensemble.sdk.model.Document;
@@ -110,6 +111,7 @@ public class QumuloRestGateway {
 	private QumuloFile getQumuloMetadata(String containerUri) throws PluginOperationFailedException {
 
 		ObjectMapper responseMapper = new ObjectMapper();
+		responseMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		QumuloFile qFile = null;
 		try {
 			HttpResponse response = this.qumuloGetOperation(containerUri);
@@ -128,6 +130,7 @@ public class QumuloRestGateway {
 	private QumuloFilesResultMapper getQumuloListing(String containerUri) throws PluginOperationFailedException {
 
 		ObjectMapper responseMapper = new ObjectMapper();
+		responseMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		QumuloFilesResultMapper resultMapper = null;
 		try {
 			HttpResponse response = this.qumuloGetOperation(containerUri);

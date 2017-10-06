@@ -18,7 +18,6 @@ import com.hds.ensemble.sdk.plugin.PluginConfig;
 import com.hds.ensemble.sdk.plugin.PluginSession;
 import com.hds.ensemble.sdk.stage.StagePlugin;
 import com.hds.ensemble.sdk.stage.StagePluginCategory;
-import com.hds.hci.plugins.stage.utils.EncryptedFileException;
 import com.hds.hci.plugins.stage.utils.EncryptedFileRecord;
 import com.hds.hci.plugins.stage.utils.StringUtil;
 
@@ -28,36 +27,24 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
-import org.apache.tika.parser.microsoft.OfficeParser;
-import org.apache.tika.parser.microsoft.ooxml.OOXMLParser;
-import org.apache.tika.parser.pdf.PDFParser;
 import org.apache.tika.sax.BodyContentHandler;
 
 public class EncryptedFileDetector implements StagePlugin {
 
 	private static final String PLUGIN_NAME = "com.hds.hci.plugins.stage.custom.encryptedFileDetector";
 	private static final String PLUGIN_DISPLAY_NAME = "Encrypted File Detection";
-	private static final String PLUGIN_DESCRIPTION = "This stage detects if a given file is password-protected or encrypted and tags with an Encrypted metadata field";
-	private static final Set<String> PDF_TYPES = Stream.of("pdf")
-			.collect(Collectors.toCollection(HashSet::new));
-	private static final Set<String> OLD_OFFICE_TYPES = Stream.of("doc", "ppt", "xls")
-			.collect(Collectors.toCollection(HashSet::new));
-	private static final Set<String> NEW_OFFICE_TYPES = Stream.of("docx","pptx","xlsx")
-			.collect(Collectors.toCollection(HashSet::new));
+	private static final String PLUGIN_DESCRIPTION = "This stage detects if a given file is password-protected or encrypted and tags with an Encrypted metadata field.\n "
+			                                       + "This stage also detect if an XML is invalid and tags with a metadata field";
 	private final PluginConfig config;
 	private final PluginCallback callback;
 
@@ -136,21 +123,15 @@ public class EncryptedFileDetector implements StagePlugin {
 	public Iterator<Document> process(PluginSession session, Document document)
 			throws ConfigurationException, PluginOperationFailedException {
 		DocumentBuilder docBuilder = this.callback.documentBuilder().copy(document);
-		String mimeType = document.getStringMetadataValue("Content_Type");
-		String fileType = document.getStringMetadataValue("HCI_filename");
+		
+		String mimeType = document.getStringMetadataValue(StandardFields.CONTENT_TYPE);
+		
 		String streamName = this.config.getPropertyValueOrDefault(PROPERTY_INPUT_FIELD_NAME.getName(), StandardFields.CONTENT);
 		InputStream inputStream = this.callback.openNamedStream(document, streamName);
-		String[] fileNameTokens = fileType.split("\\.");
-		Parser parser = null;
-		if (fileNameTokens.length == 2 && PDF_TYPES.contains(fileNameTokens[1].toLowerCase().trim())) {
-			parser = new PDFParser();
-		} else if (fileNameTokens.length == 2 && OLD_OFFICE_TYPES.contains(fileNameTokens[1].toLowerCase().trim())) {
-			parser = new OfficeParser();
-		} else if (fileNameTokens.length == 2 && NEW_OFFICE_TYPES.contains(fileNameTokens[1].toLowerCase().trim())) {
-			parser = new OOXMLParser();
-		} else {
-			parser = new AutoDetectParser();
-		}
+		
+		
+		Parser parser = new AutoDetectParser();
+
 		  BodyContentHandler handler = new BodyContentHandler();
 		  Metadata metadata = new Metadata();
 		  ParseContext context = new ParseContext();
@@ -166,11 +147,7 @@ public class EncryptedFileDetector implements StagePlugin {
                         metadata.set("Content-Type", mimeType);
 					}
                     metadata.set("resourceName", document.getStringMetadataValue(StandardFields.FILENAME));
-                    
-                    if (NEW_OFFICE_TYPES.contains(fileNameTokens[1].toLowerCase().trim()) 
-                    		&& mimeType.toLowerCase().contains("protected")) {
-                        throw new EncryptedFileException("document encrypted");
-                    }
+                   
 					parser.parse(stream, handler, metadata, context);
 				} catch (Exception e) {
 					String message = e.getMessage();
@@ -228,6 +205,12 @@ public class EncryptedFileDetector implements StagePlugin {
 						
 						docBuilder.setStream("$Enc_filecontent", Collections.emptyMap(), instream);
 						
+					} else if ((message.toLowerCase().contains("xml")) || (causeStr.toLowerCase().contains("xml"))) {
+						docBuilder.setMetadata("$InvalidXMLFile",
+								BooleanDocumentFieldValue.builder().setBoolean(Boolean.TRUE).build());
+					} else {
+						docBuilder.setMetadata("$CorruptFile",
+								BooleanDocumentFieldValue.builder().setBoolean(Boolean.TRUE).build());
 					}
 
 			} 
