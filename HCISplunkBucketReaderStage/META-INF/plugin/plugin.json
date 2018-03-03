@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.stage",
+    "description": "Splunk Archive Bucket Reader Stage",
+    "displayName": "Splunk Archive Bucket Reader Plugin",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.splunk.SplunkArchiveBucketReader",
+            "pluginName": "com.hitachi.hci.plugins.stage.splunk.splunkArchiveBucketReader",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.2"
+}
+
