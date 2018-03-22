@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hds.hci.plugins.custom",
+    "description": "Hash Compute Stage",
+    "displayName": "Hash Compute Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hds.hci.plugins.stage.custom.HashCompute",
+            "pluginName": "com.hds.hci.plugins.stage.custom.hashCompute",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
+

@@ -82,7 +82,7 @@ public class SplunkArchiveBucketReader implements StagePlugin {
 	public void validateConfig(PluginConfig config) throws ConfigurationException {
 		Config.validateConfig((Config) this.getDefaultConfig(), (Config) config);
 		if (config == null) {
-			throw new ConfigurationException("No configuration for Encryption File Detection Stage");
+			throw new ConfigurationException("No configuration for Splunk Archive Bucket Reader Stage");
 		}
 	}
 
