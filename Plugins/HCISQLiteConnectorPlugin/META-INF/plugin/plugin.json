@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom.sqlite",
+    "description": "Connector for accessing SQLite Databases through JDBC.",
+    "displayName": "SQLite Database",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.connector.sqlite.SQLiteConnectorPlugin",
+            "pluginName": "SQLite Database",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
