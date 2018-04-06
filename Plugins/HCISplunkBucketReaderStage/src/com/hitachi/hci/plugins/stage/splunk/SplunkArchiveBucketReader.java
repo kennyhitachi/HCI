@@ -1,8 +1,10 @@
 package com.hitachi.hci.plugins.stage.splunk;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +19,6 @@ import com.hds.ensemble.sdk.model.Document;
 import com.hds.ensemble.sdk.model.DocumentBuilder;
 import com.hds.ensemble.sdk.model.StandardFields;
 import com.hds.ensemble.sdk.model.StreamingDocumentIterator;
-import com.hds.ensemble.sdk.model.StringDocumentFieldValue;
 import com.hds.ensemble.sdk.plugin.PluginCallback;
 import com.hds.ensemble.sdk.plugin.PluginConfig;
 import com.hds.ensemble.sdk.plugin.PluginSession;
@@ -120,19 +121,23 @@ public class SplunkArchiveBucketReader implements StagePlugin {
 
 		try {
 			RawdataJournalReader journal = RawdataJournalReader.getReaderForGzipCompressedStream(inputStream);
-
+            StringBuilder eventBuilder = new StringBuilder();
 			for (EventData eventData : journal) {
 				String eventAsString = new String(eventData.getRawContents(), RawdataJournalReader.UTF_8);
 				String metadataAsString = formatMetaInfo(eventData);
-				// eventData.getFileOffset(), eventData.getEventTime(),
-				// eventData.getSource(), eventData.getHost(),
-				// eventData.getSourcetype(), eventAsString, metadataAsString);
-
-				docBuilder.addMetadata("splunk_event",
-						StringDocumentFieldValue.builder().setString(eventAsString).build());
-				docBuilder.addMetadata("splunk_metadata",
-						StringDocumentFieldValue.builder().setString(metadataAsString).build());
+				eventBuilder.append(eventAsString);
+				eventBuilder.append(metadataAsString);
 			}
+			
+			byte[] bytes = eventBuilder.toString().getBytes();
+            /*
+             * Get ByteArrayInputStream from byte array.
+             */
+            InputStream eventStream = new ByteArrayInputStream(bytes);
+            
+			docBuilder.setStream("splunk_event_stream",
+					Collections.emptyMap(), eventStream);
+			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

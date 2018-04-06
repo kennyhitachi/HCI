@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom.solr",
+    "description": "Solr Plugin Bundle",
+    "displayName": "Solr Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.connector.solr.SolrConnectorPlugin",
+            "pluginName": "com.hitachi.hci.plugins.connector.solr.solrConnectorPlugin",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.0.3"
+}

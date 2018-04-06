@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom.database",
+    "description": "Database Plugin Bundle",
+    "displayName": "Database Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.custom.database.DatabaseConnector",
+            "pluginName": "OracleDatabase",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.0.1"
+}

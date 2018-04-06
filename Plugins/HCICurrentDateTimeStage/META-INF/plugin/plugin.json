@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hds.hci.plugins.custom.date",
+    "description": "Stage that adds a currentdatetime metadata field to the document",
+    "displayName": "CurrentDateTime Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CurrentDateTimeStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.custom.currentDateTimeStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.1"
+}
+
