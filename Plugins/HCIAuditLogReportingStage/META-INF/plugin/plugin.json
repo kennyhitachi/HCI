@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hds.hci.plugins.custom.audit",
+    "description": "AuditLogReporting Stage",
+    "displayName": "AuditLogReporting Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.report.stage.AuditLogReportingStage",
+            "pluginName": "com.hitachi.hci.plugins.report.stage.auditLogReportingStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.3"
+}
+
