@@ -1,3 +1,11 @@
+/*
+ * ========================================================================
+ *
+ * Copyright (c) by Hitachi Data Systems, 2018. All rights reserved.
+ *
+ * ========================================================================
+ */
+
 package com.hitachi.hci.plugins.stage.custom;
 
 import com.hds.ensemble.sdk.config.Config;
@@ -9,7 +17,6 @@ import com.hds.ensemble.sdk.model.DateDocumentFieldValue;
 import com.hds.ensemble.sdk.model.Document;
 import com.hds.ensemble.sdk.model.DocumentBuilder;
 import com.hds.ensemble.sdk.model.StreamingDocumentIterator;
-import com.hds.ensemble.sdk.model.StringDocumentFieldValue;
 import com.hds.ensemble.sdk.plugin.PluginCallback;
 import com.hds.ensemble.sdk.plugin.PluginConfig;
 import com.hds.ensemble.sdk.plugin.PluginSession;

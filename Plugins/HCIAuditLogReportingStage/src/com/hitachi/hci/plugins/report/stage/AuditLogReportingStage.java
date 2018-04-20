@@ -1,3 +1,11 @@
+/*
+ * ========================================================================
+ *
+ * Copyright (c) by Hitachi Data Systems, 2018. All rights reserved.
+ *
+ * ========================================================================
+ */
+
 package com.hitachi.hci.plugins.report.stage;
 
 import java.nio.charset.StandardCharsets;
@@ -10,6 +18,7 @@ import java.util.List;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -41,7 +50,8 @@ public class AuditLogReportingStage implements StagePlugin {
 	private static final String PLUGIN_DISPLAY_NAME = "Audit Log Reporting";
 	private static final String PLUGIN_DESCRIPTION = "This stage generates three streams that contain the Summary, Processed Items and Failure Items information.\n ";
 
-	private static final String BASE_QUERY = "q=*:*&rows=0&wt=json";
+	private static final String BASE_QUERY = "q=*:*&fq=runDate:[START TO END]&rows=0&wt=json";
+	private static final String TEST_QUERY = "q=*:*&rows=0&wt=json";
 	private static final String FACET_QUERY = "json.facet={moved:{type : terms,mincount : 1,limit : -1,numBuckets : true,field : MovedToCountry},"
 			+ "numread:{type : terms,mincount : 1,limit : -1,numBuckets : true,field : numberRead}}";
 	private static final String PROCESSED_QUERY = "q=*:*&fq=runDate:[START TO END]&fq=MovedDateTime:[* TO *]&fl=FileName:HCI_filename,OriginalLocation:HCI_URI,NewLocation:targetURI,UserName:account,Date_Moved_To_Country_Namespace:MovedDateTime,Date_of_ICEChat_Email:Creation_Date,Date_Ingested_To_HCP:HCI_modifiedDateString&rows=ITEMS&wt=csv";
@@ -54,7 +64,8 @@ public class AuditLogReportingStage implements StagePlugin {
 
 	private static final String M_AUDIT_LOG_NAME = "auditLogFilename";
 	private static final String M_RELATIVE_PATH = "relativePath";
-
+	private static final String M_EMAIL_METADATA = "emailData";
+	private static final String M_WRITE_AUDIT_LOG = "writeAuditLog";
 	private static final String PATH_SEPERATOR = "/";
 
 	private static final String AUDIT_LOG_NAME = "_ICEchatProcessLog.txt";
@@ -62,6 +73,8 @@ public class AuditLogReportingStage implements StagePlugin {
 	private static final String FACET_STREAM_NAME = "Facet_Stream";
 	private static final String PROCESSED_STREAM_NAME = "Processed_Stream";
 	private static final String FAILURE_STREAM_NAME = "Failure_Stream";
+	private static final String PROCESSED_HEADER_STREAM_NAME = "Processed_Header";
+	private static final String FAILURE_HEADER_STREAM_NAME = "Failure_Header";
 
 	private static final String SOLR_SCHEME = "http://";
 
@@ -86,7 +99,7 @@ public class AuditLogReportingStage implements StagePlugin {
 			.setName("hci.port").setValue("").setType(PropertyType.TEXT).setRequired(true)
 			.setUserVisibleName("Solr Port").setUserVisibleDescription("Solr Port");
 
-	// Root Directory Text Field
+	// Index Text Field
 	public static final ConfigProperty.Builder INDEX_NAME = new ConfigProperty.Builder().setName("hci.index.name")
 			.setValue("").setType(PropertyType.TEXT).setRequired(true).setUserVisibleName("Index Name")
 			.setUserVisibleDescription(
@@ -94,13 +107,13 @@ public class AuditLogReportingStage implements StagePlugin {
 
 	// Start Date Text Field
 	public static final ConfigProperty.Builder START_DATE = new ConfigProperty.Builder().setName("Start Date")
-			.setValue(EMPTY).setType(PropertyType.TEXT).setRequired(false).setUserVisibleName("Start Date")
+			.setValue(null).setType(PropertyType.TEXT).setRequired(false).setUserVisibleName("Start Date")
 			.setUserVisibleDescription(
 					"Specify the start date for the report timeframe in the format (yyyy-mm-dd). If no start date is specified, HCI will use the current Date as Start Date by default");
 
 	// End Date Text Field
 	public static final ConfigProperty.Builder END_DATE = new ConfigProperty.Builder().setName("End Date")
-			.setValue(EMPTY).setType(PropertyType.TEXT).setRequired(false).setUserVisibleName("End Date")
+			.setValue(null).setType(PropertyType.TEXT).setRequired(false).setUserVisibleName("End Date")
 			.setUserVisibleDescription(
 					"Specify the end date for the report timeframe in the format (yyyy-mm-dd). If no end date is specified, HCI will use the current Date as End Date by default");
 	// Max Rows Text Field
@@ -112,7 +125,7 @@ public class AuditLogReportingStage implements StagePlugin {
 
 	// Check Summary
 	public static final ConfigProperty.Builder CHECK_SUMMARY = new ConfigProperty.Builder().setName("hci.check.summary")
-			.setType(PropertyType.CHECKBOX).setValue("true").setRequired(false).setUserVisibleName("Include Summary")
+			.setType(PropertyType.CHECKBOX).setValue("true").setRequired(false).setUserVisibleName("Include Statistics")
 			.setUserVisibleDescription(
 					"Check this option to capture the summary of email objects moved to their corresponding namespaces");
 
@@ -127,6 +140,17 @@ public class AuditLogReportingStage implements StagePlugin {
 			.setName("hci.check.failures").setType(PropertyType.CHECKBOX).setValue("true").setRequired(false)
 			.setUserVisibleName("Include Failure Items")
 			.setUserVisibleDescription("Check this option to capture the failure list of email objects.");
+
+	// Write Audit Log
+	public static final ConfigProperty.Builder WRITE_AUDIT_LOG = new ConfigProperty.Builder()
+			.setName("hci.write.auditlog").setType(PropertyType.CHECKBOX).setValue("true").setRequired(false)
+			.setUserVisibleName("Write AuditLog").setUserVisibleDescription(
+					"Check this option to write the statistics and summary to a Audit log on a HCP namespace.");
+
+	// Enable Debug
+	public static final ConfigProperty.Builder DEBUG = new ConfigProperty.Builder().setName("hci.debug")
+			.setType(PropertyType.CHECKBOX).setValue("false").setRequired(false).setUserVisibleName("Debug")
+			.setUserVisibleDescription("Check this option to debug raw response values.Disable write Audit Log when using this option.");
 
 	private static List<ConfigProperty.Builder> solrGroupProperties = new ArrayList<>();
 
@@ -145,6 +169,8 @@ public class AuditLogReportingStage implements StagePlugin {
 		reportGroupProperties.add(CHECK_SUMMARY);
 		reportGroupProperties.add(CHECK_PROCESSED);
 		reportGroupProperties.add(CHECK_FAILURES);
+		reportGroupProperties.add(WRITE_AUDIT_LOG);
+		reportGroupProperties.add(DEBUG);
 	}
 
 	// Solr Group Settings
@@ -196,6 +222,27 @@ public class AuditLogReportingStage implements StagePlugin {
 
 		if (config == null) {
 			throw new ConfigurationException("No configuration for AuditLogReporting Stage");
+		}
+		try {
+			HttpClient mHttpClient = HttpClientBuilder.create().build();
+			HttpPost testPostRequest = new HttpPost(getRequestURL(config.getPropertyValue(HOST_NAME.getName()),
+					config.getPropertyValue(PORT.getName()), config.getPropertyValue(INDEX_NAME.getName())));
+			StringEntity queryEntity = new StringEntity(TEST_QUERY);
+
+			testPostRequest.setHeader("Content-Type", "application/x-www-form-urlencoded");
+			testPostRequest.setEntity(queryEntity);
+
+			HttpResponse httpResponse = mHttpClient.execute(testPostRequest);
+			if (2 != (int) (httpResponse.getStatusLine().getStatusCode() / 100)) {
+				throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(),
+						"Unexpected status returned from " + testPostRequest.getMethod() + " ("
+								+ httpResponse.getStatusLine().getStatusCode() + ": "
+								+ httpResponse.getStatusLine().getReasonPhrase() + ")");
+
+			}
+			EntityUtils.consume(httpResponse.getEntity());
+		} catch (Exception e) {
+			throw new ConfigurationException("Unable to connect to the solr index specified: " + e.getMessage());
 		}
 		try {
 			startDate = config.getPropertyValue(START_DATE.getName());
@@ -252,26 +299,41 @@ public class AuditLogReportingStage implements StagePlugin {
 		String port = this.config.getPropertyValue(PORT.getName());
 		String indexName = this.config.getPropertyValue(INDEX_NAME.getName());
 
-		String startDate = this.config.getPropertyValueOrDefault(START_DATE.getName(), sdf.format(new Date()));
-		String endDate = this.config.getPropertyValueOrDefault(END_DATE.getName(), sdf.format(new Date()));
+		String startDate = this.config.getPropertyValue(START_DATE.getName());
+		if (startDate == null || EMPTY.equalsIgnoreCase(startDate)){
+			startDate = sdf.format(new Date());
+		}
+		String endDate = this.config.getPropertyValue(END_DATE.getName());
+		if (endDate == null || EMPTY.equalsIgnoreCase(endDate)){
+			endDate = sdf.format(new Date());
+		}
 		String maxRows = this.config.getPropertyValueOrDefault(MAX_ROWS.getName(), DEFAULT_MAX_ROWS);
 
 		Boolean includeSummary = Boolean.valueOf(this.config.getPropertyValue(CHECK_SUMMARY.getName()));
 		Boolean includeProcessedItems = Boolean.valueOf(this.config.getPropertyValue(CHECK_PROCESSED.getName()));
 		Boolean includeFailureItems = Boolean.valueOf(this.config.getPropertyValue(CHECK_FAILURES.getName()));
+		Boolean shouldWriteAuditLog = Boolean.valueOf(this.config.getPropertyValue(WRITE_AUDIT_LOG.getName()));
+		Boolean debugEnabled = Boolean.valueOf(this.config.getPropertyValue(DEBUG.getName()));
 
 		JSONParser parser = new JSONParser();
 		HttpClient mHttpClient = HttpClientBuilder.create().build();
 		Boolean failuresExist = false;
 		StringBuilder sb = new StringBuilder();
+		StringBuilder formattedFailures = new StringBuilder();
 
 		try {
 			if (includeSummary) {
-				HttpPost facetPostRequest = new HttpPost(SOLR_SCHEME + hostname + ":" + port + PATH_SEPERATOR + "solr"
-						+ PATH_SEPERATOR + indexName + PATH_SEPERATOR + "select");
+				HttpPost facetPostRequest = new HttpPost(getRequestURL(hostname, port, indexName));
 
+				String baseQueryTemplate = BASE_QUERY;
+				String baseQuery = baseQueryTemplate.replace("START", startDate + START_DATE_SUFFIX).replace("END",
+						endDate + END_DATE_SUFFIX);
 				// Add the body of the POST request.
-				StringEntity queryEntity = new StringEntity(BASE_QUERY + "&" + FACET_QUERY);
+				if (debugEnabled) {
+					docBuilder.setMetadata("baseQuery",
+							StringDocumentFieldValue.builder().setString(baseQuery).build());
+				}
+				StringEntity queryEntity = new StringEntity(baseQuery + "&" + FACET_QUERY);
 
 				facetPostRequest.setHeader("Content-Type", "application/x-www-form-urlencoded");
 				facetPostRequest.setEntity(queryEntity);
@@ -279,57 +341,61 @@ public class AuditLogReportingStage implements StagePlugin {
 				HttpResponse httpResponse = mHttpClient.execute(facetPostRequest);
 				String jsonResponseString = IOUtils.toString(httpResponse.getEntity().getContent(),
 						StandardCharsets.UTF_8.toString());
-
+				if (debugEnabled) {
+					docBuilder.setMetadata("jsonResponse",
+							StringDocumentFieldValue.builder().setString(jsonResponseString).build());
+				}
 				EntityUtils.consume(httpResponse.getEntity());
 
 				Object obj = parser.parse(jsonResponseString);
 				JSONObject obj2 = (JSONObject) obj;
 				JSONObject obj3 = (JSONObject) obj2.get("facets");
-				JSONObject obj4 = (JSONObject) obj3.get("numread");
-				JSONArray array = (JSONArray) obj4.get("buckets");
-				sb.append("Summary :");
-				sb.append("\n");
-				sb.append("===========================================================================");
-				sb.append("\n");
-				for (int i = 0; i < array.size(); i++) {
-					JSONObject newobj = (JSONObject) array.get(i);
-					sb.append("Landing zone namespace - Total number of emails read : ");
-					sb.append(newobj.get("count").toString());
-					sb.append("\n");
+				if (obj3 != null) {
+					JSONObject obj4 = (JSONObject) obj3.get("numread");
+					if (obj4 != null) {
+						JSONArray array = (JSONArray) obj4.get("buckets");
+						sb.append("Statistics :");
+						sb.append("\n");
+						sb.append("===========================================================================");
+						sb.append("\n");
+						for (int i = 0; i < array.size(); i++) {
+							JSONObject newobj = (JSONObject) array.get(i);
+							sb.append("Landing zone namespace - Total number of emails read : ");
+							sb.append(newobj.get("count").toString());
+							sb.append("\n");
+						}
+
+						JSONObject obj5 = (JSONObject) obj3.get("moved");
+						JSONArray array2 = (JSONArray) obj5.get("buckets");
+
+						for (int i = 0; i < array2.size(); i++) {
+							JSONObject newobj = (JSONObject) array2.get(i);
+							if ("Unknown".equalsIgnoreCase(newobj.get("val").toString())) {
+								sb.append("Landing zone namespace - Number of emails remaining (i.e. not mapped) : ");
+								sb.append(newobj.get("count").toString());
+								sb.append("\n");
+								failuresExist = true;
+							}
+							if ("UK".equalsIgnoreCase(newobj.get("val").toString())) {
+								sb.append("UK namespace - Number of emails written : ");
+								sb.append(newobj.get("count").toString());
+								sb.append("\n");
+							}
+							if ("US".equalsIgnoreCase(newobj.get("val").toString())) {
+								sb.append("US namespace - Number of emails written : ");
+								sb.append(newobj.get("count").toString());
+								sb.append("\n");
+							}
+						}
+						sb.append("===========================================================================");
+						sb.append("\n");
+					}
 				}
-
-				JSONObject obj5 = (JSONObject) obj3.get("moved");
-				JSONArray array2 = (JSONArray) obj5.get("buckets");
-
-				for (int i = 0; i < array2.size(); i++) {
-					JSONObject newobj = (JSONObject) array2.get(i);
-					if ("Unknown".equalsIgnoreCase(newobj.get("val").toString())) {
-						sb.append("Landing zone namespace - Number of emails remaining (i.e. not mapped) : ");
-						sb.append(newobj.get("count").toString());
-						sb.append("\n");
-						failuresExist = true;
-					}
-					if ("UK".equalsIgnoreCase(newobj.get("val").toString())) {
-						sb.append("UK namespace - Number of emails written : ");
-						sb.append(newobj.get("count").toString());
-						sb.append("\n");
-					}
-					if ("US".equalsIgnoreCase(newobj.get("val").toString())) {
-						sb.append("US namespace - Number of emails written : ");
-						sb.append(newobj.get("count").toString());
-						sb.append("\n");
-					}
-				}
-
-				sb.append("\n");
-				sb.append("===========================================================================");
-				sb.append("\n");
 
 				docBuilder.setStream(FACET_STREAM_NAME, Collections.emptyMap(), IOUtils.toInputStream(sb.toString()));
 			}
 			if (includeProcessedItems) {
-				HttpPost processedPostRequest = new HttpPost(SOLR_SCHEME + hostname + ":" + port + PATH_SEPERATOR
-						+ "solr" + PATH_SEPERATOR + indexName + PATH_SEPERATOR + "select");
+				HttpPost processedPostRequest = new HttpPost(getRequestURL(hostname, port, indexName));
 
 				String processedQueryTemplate = PROCESSED_QUERY;
 				String processedQuery = processedQueryTemplate.replace("START", startDate + START_DATE_SUFFIX)
@@ -349,8 +415,7 @@ public class AuditLogReportingStage implements StagePlugin {
 			}
 
 			if (includeFailureItems && failuresExist) {
-				HttpPost failurePostRequest = new HttpPost(SOLR_SCHEME + hostname + ":" + port + PATH_SEPERATOR + "solr"
-						+ PATH_SEPERATOR + indexName + PATH_SEPERATOR + "select");
+				HttpPost failurePostRequest = new HttpPost(getRequestURL(hostname, port, indexName));
 
 				String failureQueryTemplate = FAILURE_QUERY;
 				String failureQuery = failureQueryTemplate.replace("START", startDate + START_DATE_SUFFIX)
@@ -363,10 +428,27 @@ public class AuditLogReportingStage implements StagePlugin {
 				failurePostRequest.setEntity(failureQueryEntity);
 
 				HttpResponse httpFailureResponse = mHttpClient.execute(failurePostRequest);
+				String csvResponseString = IOUtils.toString(httpFailureResponse.getEntity().getContent(),
+						StandardCharsets.UTF_8.toString());
 				docBuilder.setStream(FAILURE_STREAM_NAME, Collections.emptyMap(),
-						httpFailureResponse.getEntity().getContent());
+						IOUtils.toInputStream(csvResponseString));
 
 				EntityUtils.consume(httpFailureResponse.getEntity());
+
+				String[] lines = csvResponseString.split("\n");
+				for (String line : lines) {
+					String[] cols = line.split(",");
+					formattedFailures.append(String.format("%-25s%-50s%s\n", cols[0], cols[1], cols[2]));
+				}
+			}
+
+			if (!sb.toString().isEmpty() || !formattedFailures.toString().isEmpty()) {
+				sb.append("\n");
+				sb.append("Failure Details :");
+				sb.append("\n");
+				sb.append("\n");
+				docBuilder.setMetadata(M_EMAIL_METADATA,
+						StringDocumentFieldValue.builder().setString(sb.append(formattedFailures).toString()).build());
 			}
 
 			String currentDateTime = sdf_time.format(new Date());
@@ -377,10 +459,31 @@ public class AuditLogReportingStage implements StagePlugin {
 			docBuilder.setMetadata(M_RELATIVE_PATH, StringDocumentFieldValue.builder().setString(relPath).build());
 			docBuilder.setMetadata(M_AUDIT_LOG_NAME,
 					StringDocumentFieldValue.builder().setString(auditLogFileName).build());
+			if (shouldWriteAuditLog) {
+				docBuilder.setMetadata(M_WRITE_AUDIT_LOG, StringDocumentFieldValue.builder().setString("true").build());
+			}
+			StringBuilder processedHeader = new StringBuilder();
+			processedHeader.append("\n");
+			processedHeader.append("Successfully Processed : ");
+			processedHeader.append("\n");
+			processedHeader.append("=========================");
+			processedHeader.append("\n");
+
+			docBuilder.setStream(PROCESSED_HEADER_STREAM_NAME, Collections.emptyMap(),
+					IOUtils.toInputStream(processedHeader.toString()));
+
+			StringBuilder failureHeader = new StringBuilder();
+			failureHeader.append("\n");
+			failureHeader.append("Failures : ");
+			failureHeader.append("\n");
+			failureHeader.append("=========================");
+			failureHeader.append("\n");
+
+			docBuilder.setStream(FAILURE_HEADER_STREAM_NAME, Collections.emptyMap(),
+					IOUtils.toInputStream(failureHeader.toString()));
 
 		} catch (Exception e) {
-			throw new PluginOperationFailedException("Unable to connect to Solr. " + "Please verify the credentials",
-					(Throwable) e);
+			throw new PluginOperationFailedException("Encountered an Unexpected Error : ", (Throwable) e);
 		}
 
 		// return Iterators.singletonIterator(docBuilder.build());
@@ -403,6 +506,22 @@ public class AuditLogReportingStage implements StagePlugin {
 				return endOfDocuments();
 			}
 		};
+	}
+
+	public String getRequestURL(String host, String port, String index) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(SOLR_SCHEME);
+		sb.append(host);
+		sb.append(":");
+		sb.append(port);
+		sb.append(PATH_SEPERATOR);
+		sb.append("solr");
+		sb.append(PATH_SEPERATOR);
+		sb.append(index);
+		sb.append(PATH_SEPERATOR);
+		sb.append("select");
+
+		return sb.toString();
 	}
 
 	public StagePluginCategory getCategory() {
