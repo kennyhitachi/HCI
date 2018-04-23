@@ -150,7 +150,13 @@ public class AuditLogReportingStage implements StagePlugin {
 	// Enable Debug
 	public static final ConfigProperty.Builder DEBUG = new ConfigProperty.Builder().setName("hci.debug")
 			.setType(PropertyType.CHECKBOX).setValue("false").setRequired(false).setUserVisibleName("Debug")
-			.setUserVisibleDescription("Check this option to debug raw response values.Disable write Audit Log when using this option.");
+			.setUserVisibleDescription(
+					"Check this option to debug raw response values.Disable write Audit Log when using this option.");
+
+	// Enable Export Mode
+	public static final ConfigProperty.Builder EXPORT_MODE = new ConfigProperty.Builder().setName("hci.export.mode")
+			.setType(PropertyType.CHECKBOX).setValue("false").setRequired(false).setUserVisibleName("ExportMode")
+			.setUserVisibleDescription("Check this option to before exporting the Workflow.");
 
 	private static List<ConfigProperty.Builder> solrGroupProperties = new ArrayList<>();
 
@@ -171,6 +177,7 @@ public class AuditLogReportingStage implements StagePlugin {
 		reportGroupProperties.add(CHECK_FAILURES);
 		reportGroupProperties.add(WRITE_AUDIT_LOG);
 		reportGroupProperties.add(DEBUG);
+		reportGroupProperties.add(EXPORT_MODE);
 	}
 
 	// Solr Group Settings
@@ -223,26 +230,29 @@ public class AuditLogReportingStage implements StagePlugin {
 		if (config == null) {
 			throw new ConfigurationException("No configuration for AuditLogReporting Stage");
 		}
-		try {
-			HttpClient mHttpClient = HttpClientBuilder.create().build();
-			HttpPost testPostRequest = new HttpPost(getRequestURL(config.getPropertyValue(HOST_NAME.getName()),
-					config.getPropertyValue(PORT.getName()), config.getPropertyValue(INDEX_NAME.getName())));
-			StringEntity queryEntity = new StringEntity(TEST_QUERY);
+		Boolean exportEnabled = Boolean.valueOf(config.getPropertyValue(EXPORT_MODE.getName()));
+		if (!exportEnabled) {
+			try {
+				HttpClient mHttpClient = HttpClientBuilder.create().build();
+				HttpPost testPostRequest = new HttpPost(getRequestURL(config.getPropertyValue(HOST_NAME.getName()),
+						config.getPropertyValue(PORT.getName()), config.getPropertyValue(INDEX_NAME.getName())));
+				StringEntity queryEntity = new StringEntity(TEST_QUERY);
 
-			testPostRequest.setHeader("Content-Type", "application/x-www-form-urlencoded");
-			testPostRequest.setEntity(queryEntity);
+				testPostRequest.setHeader("Content-Type", "application/x-www-form-urlencoded");
+				testPostRequest.setEntity(queryEntity);
 
-			HttpResponse httpResponse = mHttpClient.execute(testPostRequest);
-			if (2 != (int) (httpResponse.getStatusLine().getStatusCode() / 100)) {
-				throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(),
-						"Unexpected status returned from " + testPostRequest.getMethod() + " ("
-								+ httpResponse.getStatusLine().getStatusCode() + ": "
-								+ httpResponse.getStatusLine().getReasonPhrase() + ")");
+				HttpResponse httpResponse = mHttpClient.execute(testPostRequest);
+				if (2 != (int) (httpResponse.getStatusLine().getStatusCode() / 100)) {
+					throw new HttpResponseException(httpResponse.getStatusLine().getStatusCode(),
+							"Unexpected status returned from " + testPostRequest.getMethod() + " ("
+									+ httpResponse.getStatusLine().getStatusCode() + ": "
+									+ httpResponse.getStatusLine().getReasonPhrase() + ")");
 
+				}
+				EntityUtils.consume(httpResponse.getEntity());
+			} catch (Exception e) {
+				throw new ConfigurationException("Unable to connect to the solr index specified: " + e.getMessage());
 			}
-			EntityUtils.consume(httpResponse.getEntity());
-		} catch (Exception e) {
-			throw new ConfigurationException("Unable to connect to the solr index specified: " + e.getMessage());
 		}
 		try {
 			startDate = config.getPropertyValue(START_DATE.getName());
@@ -300,11 +310,11 @@ public class AuditLogReportingStage implements StagePlugin {
 		String indexName = this.config.getPropertyValue(INDEX_NAME.getName());
 
 		String startDate = this.config.getPropertyValue(START_DATE.getName());
-		if (startDate == null || EMPTY.equalsIgnoreCase(startDate)){
+		if (startDate == null || EMPTY.equalsIgnoreCase(startDate)) {
 			startDate = sdf.format(new Date());
 		}
 		String endDate = this.config.getPropertyValue(END_DATE.getName());
-		if (endDate == null || EMPTY.equalsIgnoreCase(endDate)){
+		if (endDate == null || EMPTY.equalsIgnoreCase(endDate)) {
 			endDate = sdf.format(new Date());
 		}
 		String maxRows = this.config.getPropertyValueOrDefault(MAX_ROWS.getName(), DEFAULT_MAX_ROWS);
