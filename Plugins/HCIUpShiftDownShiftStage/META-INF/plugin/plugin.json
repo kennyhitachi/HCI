@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hds.hci.plugins.custom.shifter",
+    "description": "Stage that shifts the value of the metadata field",
+    "displayName": "Shifter Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.shifter.UpShiftDownShiftStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.shifter.upShiftDownShiftStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.1"
+}
+
