@@ -61,6 +61,8 @@ public class AuditLogReportingStage implements StagePlugin {
 	private static final String END_DATE_SUFFIX = "T23:59:59Z";
 
 	private static final String DEFAULT_MAX_ROWS = "10000";
+	
+	private static final String DEFAULT_WORKFLOW_NAME = "ICEChatIngestWF_v1.0";
 
 	private static final String M_AUDIT_LOG_NAME = "auditLogFilename";
 	private static final String M_RELATIVE_PATH = "relativePath";
@@ -122,6 +124,13 @@ public class AuditLogReportingStage implements StagePlugin {
 			.setName("Max Items").setValue("10000").setType(PropertyType.TEXT).setRequired(true)
 			.setUserVisibleName("Max Items")
 			.setUserVisibleDescription("Max items to be retrieved for Processed/Failure Items.Default is 10000");
+	
+	// Workflow Nmae Text Field
+		public static final ConfigProperty.Builder WORKFLOW_NAME = new ConfigProperty.Builder()
+
+				.setName("Workflow Name").setValue("ICEChatIngestWF_v1.0").setType(PropertyType.TEXT).setRequired(true)
+				.setUserVisibleName("Workflow Name")
+				.setUserVisibleDescription("Name of the workflow for which provides the information for the audit log. Default: ICEChatIngestWF_v1.0");
 
 	// Check Summary
 	public static final ConfigProperty.Builder CHECK_SUMMARY = new ConfigProperty.Builder().setName("hci.check.summary")
@@ -172,6 +181,7 @@ public class AuditLogReportingStage implements StagePlugin {
 		reportGroupProperties.add(START_DATE);
 		reportGroupProperties.add(END_DATE);
 		reportGroupProperties.add(MAX_ROWS);
+		reportGroupProperties.add(WORKFLOW_NAME);
 		reportGroupProperties.add(CHECK_SUMMARY);
 		reportGroupProperties.add(CHECK_PROCESSED);
 		reportGroupProperties.add(CHECK_FAILURES);
@@ -318,6 +328,8 @@ public class AuditLogReportingStage implements StagePlugin {
 			endDate = sdf.format(new Date());
 		}
 		String maxRows = this.config.getPropertyValueOrDefault(MAX_ROWS.getName(), DEFAULT_MAX_ROWS);
+		
+		String workflowName = this.config.getPropertyValueOrDefault(WORKFLOW_NAME.getName(), DEFAULT_WORKFLOW_NAME);
 
 		Boolean includeSummary = Boolean.valueOf(this.config.getPropertyValue(CHECK_SUMMARY.getName()));
 		Boolean includeProcessedItems = Boolean.valueOf(this.config.getPropertyValue(CHECK_PROCESSED.getName()));
@@ -330,6 +342,23 @@ public class AuditLogReportingStage implements StagePlugin {
 		Boolean failuresExist = false;
 		StringBuilder sb = new StringBuilder();
 		StringBuilder formattedFailures = new StringBuilder();
+		
+		StringBuilder reportHeader = new StringBuilder();
+		reportHeader.append("ICE Chat Audit Log Report:");
+		reportHeader.append("\n");
+		reportHeader.append("==========================");
+		reportHeader.append("\n");
+		reportHeader.append("HCI Workflow/Job Name : ");
+		reportHeader.append(workflowName);
+		reportHeader.append("\n");
+		reportHeader.append("Report Time Range : ");
+		reportHeader.append(startDate + START_DATE_SUFFIX+" TO "+endDate + END_DATE_SUFFIX);
+		reportHeader.append("\n");
+		reportHeader.append("\n");
+		
+		docBuilder.setMetadata("reportHeader",
+				StringDocumentFieldValue.builder().setString(reportHeader.toString()).build());
+		
 
 		try {
 			if (includeSummary) {
@@ -366,7 +395,7 @@ public class AuditLogReportingStage implements StagePlugin {
 						JSONArray array = (JSONArray) obj4.get("buckets");
 						sb.append("Statistics :");
 						sb.append("\n");
-						sb.append("===========================================================================");
+						sb.append("============");
 						sb.append("\n");
 						for (int i = 0; i < array.size(); i++) {
 							JSONObject newobj = (JSONObject) array.get(i);
@@ -377,7 +406,8 @@ public class AuditLogReportingStage implements StagePlugin {
 
 						JSONObject obj5 = (JSONObject) obj3.get("moved");
 						JSONArray array2 = (JSONArray) obj5.get("buckets");
-
+                        
+						
 						for (int i = 0; i < array2.size(); i++) {
 							JSONObject newobj = (JSONObject) array2.get(i);
 							if ("Unknown".equalsIgnoreCase(newobj.get("val").toString())) {
@@ -385,7 +415,7 @@ public class AuditLogReportingStage implements StagePlugin {
 								sb.append(newobj.get("count").toString());
 								sb.append("\n");
 								failuresExist = true;
-							}
+							} 
 							if ("UK".equalsIgnoreCase(newobj.get("val").toString())) {
 								sb.append("UK namespace - Number of emails written : ");
 								sb.append(newobj.get("count").toString());
@@ -397,7 +427,11 @@ public class AuditLogReportingStage implements StagePlugin {
 								sb.append("\n");
 							}
 						}
-						sb.append("===========================================================================");
+						if (!failuresExist) {
+							sb.append("Landing zone namespace - Number of emails remaining (i.e. not mapped) : ");
+							sb.append("0");
+							sb.append("\n");
+						} 
 						sb.append("\n");
 					}
 				}
@@ -456,7 +490,12 @@ public class AuditLogReportingStage implements StagePlugin {
 				sb.append("\n");
 				sb.append("Failure Details :");
 				sb.append("\n");
+				sb.append("=================");
 				sb.append("\n");
+				if (formattedFailures.toString().isEmpty()){
+					sb.append("No Failure Items Found.");
+					sb.append("\n");
+				}
 				docBuilder.setMetadata(M_EMAIL_METADATA,
 						StringDocumentFieldValue.builder().setString(sb.append(formattedFailures).toString()).build());
 			}
@@ -488,6 +527,10 @@ public class AuditLogReportingStage implements StagePlugin {
 			failureHeader.append("\n");
 			failureHeader.append("=========================");
 			failureHeader.append("\n");
+			if (!failuresExist) {
+				failureHeader.append("No Failure Items Found");
+				failureHeader.append("\n");
+			}
 
 			docBuilder.setStream(FAILURE_HEADER_STREAM_NAME, Collections.emptyMap(),
 					IOUtils.toInputStream(failureHeader.toString()));
