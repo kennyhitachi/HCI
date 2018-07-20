@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.anonymizer.custom",
+    "description": "Content Anonymizer Stage",
+    "displayName": "Content Anonymizer Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.content.stage.ContentAnonymizerStage",
+            "pluginName": "com.hitachi.hci.content.stage.contentAnonymizerStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.9"
+}
+
