@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom.database.db2",
+    "description": "DB2 Database Plugin Bundle",
+    "displayName": "DB2 Database Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.db2.custom.DB2JDBCConnector",
+            "pluginName": "DB2Database",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
