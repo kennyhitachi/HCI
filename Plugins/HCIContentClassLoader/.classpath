@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jdk1.8.0_65"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/log4j-api-2.0.2.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/log4j-core-2.0.2.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/httpcore-4.2.4.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/httpclient-4.2.5.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/commons-logging-1.1.1.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/commons-lang-2.5.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/jackson-dataformat-csv-2.5.1.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/jackson-annotations-2.5.1.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/jackson-all-1.9.11.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/jackson-databind-2.5.1.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/jackson-core-2.5.1.jar"/>
+	<classpathentry kind="lib" path="/data/git/hds-ps-ce/COMET/thirdparty/libs/commons-io-2.5.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/poi-3.17/ooxml-lib/xmlbeans-2.6.0.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/poi-3.17/poi-ooxml-schemas-3.17.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/poi-3.17/poi-3.17.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/poi-3.17/poi-ooxml-3.17.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/poi-3.17/lib/commons-codec-1.10.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/commons-cli-1.4/commons-cli-1.4.jar"/>
+	<classpathentry kind="lib" path="/home/kkancherla/Downloads/poi-3.17/lib/commons-collections4-4.1.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
