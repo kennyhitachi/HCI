@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.database.cfn.sql",
+    "description": "CFN SQL Server Database Connector",
+    "displayName": "CFN SQL Server Database Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.cfn.sql.connector.CFNSqlServerConnector",
+            "pluginName": "CFNSQLServerConnector",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "2.0.6"
+}
+
