@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.custom.aw",
+    "description": "HCP AW Create Link Stage",
+    "displayName": "HCP AW Create Link Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.aw.link.AWLinkCreateStage",
+            "pluginName": "com.hitachi.hci.aw.link.aWLinkCreateStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
+
