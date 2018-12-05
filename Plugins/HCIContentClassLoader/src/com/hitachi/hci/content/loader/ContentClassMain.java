@@ -1,9 +1,11 @@
 package com.hitachi.hci.content.loader;
 
 import java.io.File;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.NoRouteToHostException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -245,8 +247,6 @@ public class ContentClassMain {
 
 		for (int i = 0; i < cc.length; i++) {
 			classMap.put(cc[i].getName(), cc[i].getUuid());
-			// System.out.println("KEY: "+cc[i].getName() +" "+"VALUE:
-			// "+cc[i].getUuid());
 		}
 
 		System.out.println("INFO: Refreshed the HCI Content Class Map");
@@ -275,24 +275,18 @@ public class ContentClassMain {
 
 			Iterator<Row> rowIterator = sheet.rowIterator();
 			rowIterator.next(); // skip the header
+			
 			while (rowIterator.hasNext()) {
 				Row row = rowIterator.next();
 				String cellvalue = "";
 				ContentProperties cProps = new ContentProperties();
-
 				Iterator<Cell> cellIterator = row.cellIterator();
-
 				while (cellIterator.hasNext()) {
 					Cell cell = cellIterator.next();
-
 					String cellValue = dataFormatter.formatCellValue(cell).trim();
-
 					cellvalue = cellvalue + "\t" + cellValue;
-
 				}
-
 				String[] cellvalues = cellvalue.split("\t");
-
 				if (cellvalues.length > 1) {
 					cProps.setModelVersion("1.1.0");
 					cProps.setName(cellvalues[2]);
@@ -317,7 +311,7 @@ public class ContentClassMain {
 			httpRequest.setHeader("Accept", "application/json");
 			httpRequest.setHeader("Authorization", "Bearer " + mAccessToken);
 
-			httpRequest.setEntity(new StringEntity(jsonBody));
+			httpRequest.setEntity(new StringEntity(jsonBody, StandardCharsets.UTF_8));
 
 			/*
 			 * Now execute the POST request.
@@ -325,7 +319,7 @@ public class ContentClassMain {
 			// httpRequest.removeHeaders(arg0);
 			HttpResponse httpResponse = mHttpClient.execute(httpRequest);
 
-			if (httpResponse.getStatusLine().getStatusCode() == 409) {
+			if (httpResponse.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
 				EntityUtils.consume(httpResponse.getEntity());
 				System.out.println(
 						"INFO: Content Class (" + sheet.getSheetName() + ") already Exists. Initiating Update.");
@@ -340,7 +334,7 @@ public class ContentClassMain {
 				httpPutRequest.setHeader("Accept", "application/json");
 				httpPutRequest.setHeader("Authorization", "Bearer " + mAccessToken);
 
-				httpPutRequest.setEntity(new StringEntity(jsonEditBody));
+				httpPutRequest.setEntity(new StringEntity(jsonEditBody, StandardCharsets.UTF_8));
 
 				/*
 				 * Now execute the PUT request.
