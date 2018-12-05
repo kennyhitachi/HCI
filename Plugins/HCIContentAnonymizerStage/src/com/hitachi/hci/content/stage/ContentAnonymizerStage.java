@@ -1,5 +1,6 @@
 package com.hitachi.hci.content.stage;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -230,9 +231,11 @@ public class ContentAnonymizerStage implements StagePlugin {
 		String streamName = this.config.getPropertyValueOrDefault(PROPERTY_INPUT_STREAM_NAME.getName(),
 				StandardFields.CONTENT);
 		InputStream inputStream = this.callback.openNamedStream(document, streamName);
+		BufferedInputStream bs = new BufferedInputStream(inputStream);
+		
 		FileOutputStream fos = null;
 		try {
-			if (FileMagic.valueOf(inputStream) == FileMagic.OLE2) {
+			if (FileMagic.valueOf(bs) == FileMagic.OLE2) {
 				docBuilder.setMetadata("OldDocFormat",
 						BooleanDocumentFieldValue.builder().setBoolean(Boolean.TRUE).build());
 				POIFSFileSystem fs = null;
@@ -240,8 +243,8 @@ public class ContentAnonymizerStage implements StagePlugin {
 				File tempOutFile = File.createTempFile("ReplaceContentStagePlugin-", ".tmp", tempPath.toFile());
 
 				try {
-
-					fs = new POIFSFileSystem(inputStream);
+					InputStream newInputStream = bs;
+					fs = new POIFSFileSystem(newInputStream);
 
 					HWPFDocument doc = new HWPFDocument(fs);
 					WordExtractor we = new WordExtractor(doc);
@@ -283,6 +286,8 @@ public class ContentAnonymizerStage implements StagePlugin {
 					if (fos != null) {
 						try {
 							fos.flush();
+							fs.close();
+							
 						} catch (IOException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -295,14 +300,15 @@ public class ContentAnonymizerStage implements StagePlugin {
 						}
 					}
 				}
-			} else if (FileMagic.valueOf(inputStream) == FileMagic.OOXML) {
+			} else if (FileMagic.valueOf(bs) == FileMagic.OOXML) {
 				try {
 					if (inputStream != null) {
 
 						Path tempPath = this.callback.getTempDirectory(session);
 						File tempOutFile = File.createTempFile("ReplaceContentStagePlugin-", ".tmp", tempPath.toFile());
-
-						XWPFDocument doc = new XWPFDocument(inputStream);
+                        
+						InputStream newInputStream = bs;
+						XWPFDocument doc = new XWPFDocument(newInputStream);
 						XWPFDocument newdoc = new XWPFDocument();
 
 						List<XWPFParagraph> paras = doc.getParagraphs();
@@ -381,6 +387,9 @@ public class ContentAnonymizerStage implements StagePlugin {
 						new PluginOperationFailedException("Current Supported Formats are .doc and docx"));
 			}
 		} catch (Exception e) {
+			
+			throw new PluginOperationRuntimeException(
+					new PluginOperationFailedException("Error processing filestream: "+e.getMessage()));
 
 		}
 
