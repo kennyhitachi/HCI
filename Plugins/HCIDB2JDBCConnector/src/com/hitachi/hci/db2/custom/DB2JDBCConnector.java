@@ -106,6 +106,6 @@ public class DB2JDBCConnector extends BaseJdbcConnectorPlugin {
     
     @Override
     protected String getBatchSizeLimitPredicate(int batchSize) {
-        return "OFFSET 0 ROWS FETCH NEXT "+batchSize+" ROWS ONLY";
+        return "FETCH FIRST "+batchSize+" ROWS ONLY";
     }
 }
