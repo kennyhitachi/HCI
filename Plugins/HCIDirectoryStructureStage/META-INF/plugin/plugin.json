@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.directory.structure",
+    "description": "Directory Structure",
+    "displayName": "Directory Structure",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.directory.structure.DirectoryStructureStage",
+            "pluginName": "com.hitachi.hci.directory.structure.directoryStructureStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.1"
+}
