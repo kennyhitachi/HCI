@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.document.splitter",
+    "description": "Document Splitter",
+    "displayName": "Document Splitter",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.document.splitter.DocumentSplitterStage",
+            "pluginName": "com.hitachi.hci.document.splitter.documentSplitterStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.6"
+}
