@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom.database.snowflake",
+    "description": "Snow Flake Plugin Bundle",
+    "displayName": "Snow Flake Warehouse Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.snow.flake.custom.SnowFlakeJDBCConnector",
+            "pluginName": "SnowFlakeWarehouse",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
