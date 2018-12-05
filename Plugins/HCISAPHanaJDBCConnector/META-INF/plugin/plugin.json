@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hds.ensemble.plugins.custom.database.sap.hana",
+    "description": "SAP HANA Database Plugin Bundle",
+    "displayName": "SAP HANA Database Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.sap.hana.custom.SAPHanaJDBCConnector",
+            "pluginName": "SAPHANADatabase",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
