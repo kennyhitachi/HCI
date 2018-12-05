@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LIB=`readlink -e libs`
+LIB=`pwd -P`/libs
 
 if java -version 2>&1 >/dev/null | grep -q "java version" ; then
  
