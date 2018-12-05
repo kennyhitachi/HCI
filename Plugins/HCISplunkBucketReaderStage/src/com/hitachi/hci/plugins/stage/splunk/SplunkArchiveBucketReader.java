@@ -1,14 +1,16 @@
 package com.hitachi.hci.plugins.stage.splunk;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import com.hds.ensemble.sdk.config.Config;
 import com.hds.ensemble.sdk.config.ConfigProperty;
 import com.hds.ensemble.sdk.config.ConfigPropertyGroup;
@@ -17,8 +19,10 @@ import com.hds.ensemble.sdk.exception.PluginOperationFailedException;
 import com.hds.ensemble.sdk.exception.PluginOperationRuntimeException;
 import com.hds.ensemble.sdk.model.Document;
 import com.hds.ensemble.sdk.model.DocumentBuilder;
+import com.hds.ensemble.sdk.model.LongDocumentFieldValue;
 import com.hds.ensemble.sdk.model.StandardFields;
 import com.hds.ensemble.sdk.model.StreamingDocumentIterator;
+import com.hds.ensemble.sdk.model.StringDocumentFieldValue;
 import com.hds.ensemble.sdk.plugin.PluginCallback;
 import com.hds.ensemble.sdk.plugin.PluginConfig;
 import com.hds.ensemble.sdk.plugin.PluginSession;
@@ -32,10 +36,21 @@ public class SplunkArchiveBucketReader implements StagePlugin {
 	private static final String PLUGIN_DISPLAY_NAME = "Splunk Archive Bucket Reader";
 	private static final String PLUGIN_DESCRIPTION = "This stage reads a splunk archive journal file (journal.gz) and extracts Event Data.\n "
 			+ "Metadata is extracted from each event and added to the document metadata";
+	private final static Pattern apacheLog = Pattern.compile("(\\S+) (\\S+) (\\S+) \\[([\\w:/]+\\s[+\\-]\\d{4})\\] \"(\\S+)\\s?(\\S+)?\\s?(\\S+)?\" (\\d{3}|-) (\\d+|-)\\s?\"?([^\"]*)\"?\\s?\"?([^\"]*)?\"?$");
+	
+	private final static String IPAddress = "IPAddress";
+	private final static String UserAgent = "Agent";
+	private final static String UserName = "UserName";
+	private final static String DateTimestamp = "DateTimeStamp";
+	private final static String Action = "Action";
+	private final static String FilePath = "FilePath";
+	private final static String Agent = "Agent";
+	private final static String StatusCode = "StatusCode";
+	private final static String BytesTransferred = "BytesTransferred";
+	private final static String Namespace = "Namespace";
+	
 	private final PluginConfig config;
 	private final PluginCallback callback;
-
-	private final Pattern whiteSpace = Pattern.compile("\\s");
 
 	private static String inputFieldName = "Stream";
 	// Text field
@@ -105,10 +120,9 @@ public class SplunkArchiveBucketReader implements StagePlugin {
 
 	public Iterator<Document> process(PluginSession session, Document document)
 			throws ConfigurationException, PluginOperationFailedException {
-		DocumentBuilder docBuilder = this.callback.documentBuilder().copy(document);
+		this.callback.documentBuilder().copy(document);
 
 		String filename = document.getStringMetadataValue(StandardFields.FILENAME);
-
 		String extension = getExtension(filename);
 		if (null != extension && !extension.equals("gz")) {
 			throw new PluginOperationRuntimeException(new PluginOperationFailedException(
@@ -119,50 +133,155 @@ public class SplunkArchiveBucketReader implements StagePlugin {
 				StandardFields.CONTENT);
 		InputStream inputStream = this.callback.openNamedStream(document, streamName);
 
+		RawdataJournalReader journal = null;
 		try {
-			RawdataJournalReader journal = RawdataJournalReader.getReaderForGzipCompressedStream(inputStream);
-            StringBuilder eventBuilder = new StringBuilder();
-			for (EventData eventData : journal) {
-				String eventAsString = new String(eventData.getRawContents(), RawdataJournalReader.UTF_8);
-				String metadataAsString = formatMetaInfo(eventData);
-				eventBuilder.append(eventAsString);
-				eventBuilder.append(metadataAsString);
-			}
-			
-			byte[] bytes = eventBuilder.toString().getBytes();
-            /*
-             * Get ByteArrayInputStream from byte array.
-             */
-            InputStream eventStream = new ByteArrayInputStream(bytes);
-            
-			docBuilder.setStream("splunk_event_stream",
-					Collections.emptyMap(), eventStream);
-			
+			journal = RawdataJournalReader.getReaderForGzipCompressedStream(inputStream);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new PluginOperationFailedException(
+					"Unable to read journal file. Please check the logs for more details");
 		}
 
-		// return Iterators.singletonIterator(docBuilder.build());
+		Iterator<EventData> eventIter = journal.iterator();
+
 		return new StreamingDocumentIterator() {
 			boolean sentAllDocuments = false;
+			private int count = 0;
 
-			// Computes the next Document to return to the processing pipeline.
-			// When there are no more documents to return, returns
-			// endOfDocuments().
-			// This method can be used to consume an Iterator and build
-			// Documents
-			// for each individual element as this streaming Iterator is
-			// consumed.
 			@Override
 			protected Document getNextDocument() {
 				if (!sentAllDocuments) {
-					sentAllDocuments = true;
-					return docBuilder.build();
+					if (!eventIter.hasNext()) {
+						sentAllDocuments = true;
+					}
+					return buildEventDocument(document, "event", eventIter.next(), ++count);
 				}
+				closeStream();
 				return endOfDocuments();
 			}
+
+			private void closeStream() {
+				try {
+					inputStream.close();
+				} catch (IOException e) {
+					// Do Nothing. Eat Exception.
+				}
+			}
+
 		};
+
+	}
+
+	private Document buildEventDocument(Document inputDocument, String eventField, EventData event, int count) {
+		
+		if(event == null){
+			return inputDocument;
+		}
+		
+		DocumentBuilder docBuilder = callback.documentBuilder();
+		Map<String, Object> fields = event.getFields();
+		String eventString = new String(event.getRawContents(),StandardCharsets.UTF_8).trim();
+		Matcher eventMatch = apacheLog.matcher(eventString);
+
+		// Standard required fields
+		docBuilder.setMetadata(StandardFields.ID, StringDocumentFieldValue.builder()
+				.setString(inputDocument.getUniqueId() + "-" + Long.toString(count)).build());
+		docBuilder.setMetadata(StandardFields.URI, inputDocument.getMetadataValue(StandardFields.URI));
+		docBuilder.setMetadata(StandardFields.DATA_SOURCE_UUID,
+				inputDocument.getMetadataValue(StandardFields.DATA_SOURCE_UUID));
+		docBuilder.setMetadata(StandardFields.DISPLAY_NAME,
+				StringDocumentFieldValue.builder().setString(
+						inputDocument.getStringMetadataValue(StandardFields.DISPLAY_NAME) + "/" + Long.toString(count))
+						.build());
+		docBuilder.setMetadata(StandardFields.VERSION,
+				LongDocumentFieldValue.builder().setLong(System.currentTimeMillis()).build());
+
+		docBuilder.setMetadata(StandardFields.CONTENT_TYPE,
+				StringDocumentFieldValue.builder().setString("text/plain").build());
+
+		for (Map.Entry<String, Object> entry : fields.entrySet()) {
+			docBuilder.setMetadata(entry.getKey(),
+					StringDocumentFieldValue.builder().setString(entry.getValue().toString()).build());
+		}
+		
+		if (eventMatch.matches()) {
+			
+			docBuilder.setMetadata(IPAddress,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(1)).build());
+			
+			docBuilder.setMetadata(UserAgent,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(2)).build());
+			
+			docBuilder.setMetadata(UserName,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(3)).build());
+			
+			docBuilder.setMetadata(DateTimestamp,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(4)).build());
+			
+			docBuilder.setMetadata(Action,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(5)).build());
+            
+			docBuilder.setMetadata(FilePath,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(6)).build());
+			
+			docBuilder.setMetadata(Agent,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(7)).build());
+			
+			docBuilder.setMetadata(StatusCode,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(8)).build());
+			
+			docBuilder.setMetadata(BytesTransferred,
+					StringDocumentFieldValue.builder().setString(eventMatch.group(9)).build());
+			
+			String namespaceInfo = eventMatch.group(10);
+			
+			
+			
+			if (namespaceInfo != null && namespaceInfo.length()>0){
+			   String[] namespace = namespaceInfo.split("\\.");
+			   if (namespace.length == 2){
+				   String namespaceName = namespace[0];
+				   String[] tenantInfo = namespace[1].split(" ");
+				   String tenantProtocol = tenantInfo[0];
+				   String tenant;
+				   String protocol;
+				   if (tenantProtocol.contains("@")){
+					   tenant = tenantProtocol.substring(0, tenantProtocol.indexOf("@"));
+					   protocol = "hs3";
+				   }else {
+					   tenant = tenantProtocol;
+					   protocol = "http(s)";
+				   }
+				   
+				   String timemillis = tenantInfo[1];
+				   docBuilder.setMetadata("ElapsedRequestTimeMillis",
+							StringDocumentFieldValue.builder().setString(timemillis).build());
+				   docBuilder.setMetadata("Gateway",
+							StringDocumentFieldValue.builder().setString(protocol).build());
+				   docBuilder.setMetadata(Namespace,
+							StringDocumentFieldValue.builder().setString(namespaceName).build());
+				   docBuilder.setMetadata("Tenant",
+							StringDocumentFieldValue.builder().setString(tenant).build());
+			   }
+			}
+            
+		}
+
+		if (eventString.length() > 1048576) {
+			try {
+				docBuilder.setStream(eventField + "_Stream", Collections.emptyMap(),
+						eventString).build();
+			} catch (IOException e) {
+				//Eat Exception
+			}
+		} else {
+
+			docBuilder.setMetadata(eventField, StringDocumentFieldValue.builder()
+					.setString(eventString).build());
+		}
+
+		docBuilder.setHasContent(false);
+
+		return docBuilder.build();
 	}
 
 	private String getExtension(String name) {
@@ -171,29 +290,6 @@ public class SplunkArchiveBucketReader implements StagePlugin {
 			return null;
 		}
 		return name.substring(idx + 1);
-	}
-
-	private String formatMetaInfo(EventData eventData) {
-		Map<String, Object> fields = eventData.getFields();
-		StringBuilder builder = new StringBuilder();
-		builder.append("splunk_indextime::").append(eventData.getIndexTime());
-		for (Map.Entry<String, Object> entry : fields.entrySet()) {
-			builder.append(" ");
-			builder.append(this.quoteIfNeeded(entry.getKey()));
-			builder.append("::");
-			builder.append(this.quoteIfNeeded("" + entry.getValue()));
-		}
-		return builder.toString();
-	}
-
-	private String quoteIfNeeded(String str) {
-		if (null == str) {
-			return "\"\"";
-		}
-		if (this.whiteSpace.matcher(str).find()) {
-			return "\"" + str + "\"";
-		}
-		return str;
 	}
 
 	public StagePluginCategory getCategory() {

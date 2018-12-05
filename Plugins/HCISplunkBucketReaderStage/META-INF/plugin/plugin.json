@@ -9,6 +9,5 @@
             "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
         }
     ],
-    "version": "1.0.3"
+    "version": "1.0.7"
 }
-
