@@ -1,0 +1,243 @@
+#!/bin/bash
+
+usage() {
+   echo
+   echo "Usage:"
+   echo
+   echo "    `basename $0` <end-point-dns> <username> [<password>]"
+   echo "       where,"
+   echo "           <end-point-dns> is either admin.<hcp-dns-name> or "
+   echo "                           <tenant>.<hcp-dns-name>"
+   echo
+   echo "       if <password> is not provided, user will be prompted."
+   echo
+}
+
+#
+# Just dump out usage if no parameters
+#
+if [ $# -eq 0 ]; then
+  echo
+  echo "This command lists the HCP users showing their management roles and"
+  echo "namespace access permissions. The <end-point-dns> parameter can either"
+  echo "be the system level or a tenant level dns name."
+  echo
+  echo "If a tenant dns name is provided, the user credentials must be a"
+  echo "tenant administrator."
+  echo
+  echo "If a system dns name is provided, the user credentials must be a "
+  echo "system administrator. In addition, in order to report on individual"
+  echo "tenants, tenants must allow system-level users to manage the tenant."
+  echo
+  echo "The user accounts used must have SECURITY role permissions. If only"
+  echo "ADMINISTRATOR role is allowed, the roles information for each"
+  echo "user/group will not be included in the output."
+
+  usage
+  exit 1
+fi
+
+#
+# Check for correct number of parmaters.
+#
+if [ $# -lt 2 -o $# -gt 3 ]; then
+   echo
+   echo "ERROR: Invalid number of command parameters"
+
+   usage
+
+   exit 1
+fi
+
+
+#
+# Setup 3 variables from the paramters.
+#
+HCP_DNS_ENDPOINT=$1
+ENCODED_USER=`echo -n "$2" | base64`
+
+rawPassword=$3
+if [ -z "$rawPassword" ]; then
+   read -s -p "Password: " rawPassword
+   echo
+fi
+ENCODED_PASSWORD=`echo -n "$rawPassword" | md5sum | cut -d " " -f 1`
+
+##
+## Useful Functions
+##
+
+urlencode() {
+    # urlencode <string>
+
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf "$c" ;;
+            *) printf '%s' "$c" | xxd -p -c1 |
+                   while read c; do printf '%%%s' "$c"; done ;;
+        esac
+    done
+}
+
+urldecode() {
+    # urldecode <string>
+
+    local url_encoded="${1//+/ }"
+    printf '%b' "${url_encoded//%/\\x}"
+}
+
+###
+###  MAIN PROCESSING
+###
+
+#
+# Verify the name given actually goes to a web server and is HCP.
+#
+serverHeader=`curl -s -k -I https://${HCP_DNS_ENDPOINT} 2>&1 | grep "^Server:"`
+if [ 0 -ne $? ]; then
+   echo
+   echo "ERROR: Failed to resolve/reach HCP endpoint: $HCP_DNS_ENDPOINT"
+
+   usage
+
+   exit 1
+fi
+
+if [ "HCP" != "`echo $serverHeader | cut -d " " -f 2`" ]; then
+   echo
+   echo "ERROR: Not an HCP web server endpoint: $HCP_DNS_ENDPOINT"
+
+   usage
+
+   exit 1
+fi
+
+
+#
+# Based on the first part of the DNS name, might build the tenant list.
+#  If it is "admin", that means we need to get a list from the system level.
+#  Otherwise, we were only passed in one tenant.
+shopt -s nocasematch
+tenantName=`echo ${HCP_DNS_ENDPOINT} | cut -d "." -f 1`
+if [ "$tenantName" == "admin" ]; then
+   tenantList=`curl -s -k -H "Authorization: HCP ${ENCODED_USER}:${ENCODED_PASSWORD}" \
+      https://${HCP_DNS_ENDPOINT}:9090/mapi/tenants?prettyprint | grep "<name>" | cut -f 2 -d ">" | cut -f 1 -d "<"`
+else
+   tenantList=$tenantName
+fi
+shopt -u nocasematch
+
+#
+# Process each tenant determined.
+#
+for oneTenant in $tenantList; do
+   echo "Tenant: $oneTenant"
+
+   ##
+   ## Process Local Users, if any
+   ##
+   usersList=`curl -s -k -H "Authorization: HCP ${ENCODED_USER}:${ENCODED_PASSWORD}" \
+     https://${HCP_DNS_ENDPOINT}:9090/mapi/tenants/$oneTenant/userAccounts?prettyprint \
+     | grep "<username>" | cut -f 2 -d ">" | cut -f 1 -d "<"`
+
+   echo "   Local Users:"
+   if [ -z "$usersList" ]; then
+       echo "      [None/Unknown]"
+   fi
+
+   # Process each user
+   while read -r oneUser; do
+       [ -z "$oneUser" ] && continue
+
+       echo -n "      $oneUser"
+       encodedUser=`urlencode "$oneUser"`
+
+       # Get and display roles if any
+       roles=`curl -s -k -H "Authorization: HCP ${ENCODED_USER}:${ENCODED_PASSWORD}" \
+         "https://${HCP_DNS_ENDPOINT}:9090/mapi/tenants/$oneTenant/userAccounts/$encodedUser?prettyprint" \
+         | grep "<role>" | cut -d ">" -f 2 | cut -d "<" -f 1 | tr '\n' ','`
+       if [ ! -z "$roles" ]; then
+           echo " [${roles%?}]"
+       else
+           echo
+       fi
+
+       # Dispay out the data access permissions, if any
+       curl -s -k -H "Authorization: HCP ${ENCODED_USER}:${ENCODED_PASSWORD}" \
+         "https://${HCP_DNS_ENDPOINT}:9090/mapi/tenants/$oneTenant/userAccounts/$encodedUser/dataAccessPermissions?prettyprint" \
+         | awk -v indent="         " -F '[<>]' \
+              'BEGIN { firstNS=1 }
+               /namespaceName/ {if (firstNS != 1) printf "\n"
+                                printf "%s%s ", indent, $3 
+                                firstNS=0
+                                firstPerm=1 
+                                next }
+               /\/permissions/ { printf "]" }
+               /permissions/ { next }
+               /permission/ {if (firstPerm == 0)
+                               printf ","
+                             else
+                               printf "["
+                             printf "%s", $3
+                             firstPerm=0
+                             next }
+               END { printf "\n" }
+              '
+   done <<< "$usersList"
+ 
+   ##
+   ## Process AD Groups, if any 
+   ##
+   groupList=`curl -s -k -H "Authorization: HCP ${ENCODED_USER}:${ENCODED_PASSWORD}" \
+     https://${HCP_DNS_ENDPOINT}:9090/mapi/tenants/$oneTenant/groupAccounts?prettyprint \
+     | grep "<groupname>" | cut -f 2 -d ">" | cut -f 1 -d "<"`
+
+   echo "   AD Groups:"
+   if [ -z "$groupList" ]; then
+       echo "      [None/Unknown]"
+   fi
+   while read -r oneGroup; do
+       [ -z "$oneGroup" ] && continue
+
+       echo -n "      $oneGroup"
+       encodedGroup=`urlencode "$oneGroup"`
+
+       # Get and display roles if any
+       roles=`curl -s -k -H "Authorization: HCP ${ENCODED_USER}:${ENCODED_PASSWORD}" \
+         "https://${HCP_DNS_ENDPOINT}:9090/mapi/tenants/$oneTenant/groupAccounts/$encodedGroup?prettyprint" \
+         | grep "<role>" | cut -d ">" -f 2 | cut -d "<" -f 1 | tr '\n' ','`
+       if [ ! -z "$roles" ]; then
+           echo " [${roles%?}]"
+       else
+           echo
+       fi
+
+       # Dispay out the data access permissions, if any
+       curl -s -k -H "Authorization: HCP ${ENCODED_USER}:${ENCODED_PASSWORD}" \
+         "https://${HCP_DNS_ENDPOINT}:9090/mapi/tenants/$oneTenant/groupAccounts/$encodedGroup/dataAccessPermissions?prettyprint" \
+         | awk -v indent="         " -F '[<>]' \
+              'BEGIN { firstNS=1 }
+               /namespaceName/ {if (firstNS != 1) printf "\n"
+                                printf "%s%s ", indent, $3 
+                                firstNS=0
+                                firstPerm=1 
+                                next }
+               /\/permissions/ { printf "]" }
+               /permissions/ { next }
+               /permission/ {if (firstPerm == 0)
+                               printf ","
+                             else
+                               printf "["
+                             printf "%s", $3
+                             firstPerm=0
+                             next }
+               END { printf "\n" }
+              '
+   done <<< "$groupList"
+
+   echo # Space between tenants
+done
+
+exit 0

@@ -1,0 +1,15 @@
+SHELL=/bin/bash
+DI_HOME=/appl/comet
+
+# TODO: Make sure java is in the default cron path!!
+
+# Clean up the locks on reboot
+@reboot rm -rf ${DI_HOME}/locks/*
+
+#
+#  Processing Jobs
+#
+30 4 * * * { PATH=${DI_HOME}:$PATH; cmdLogger -d=Verint ProcessVerint; }
+30 4 * * * { PATH=${DI_HOME}:$PATH; cmdLogger -d=Reuters ProcessReuters; }
+30 4 * * * { PATH=${DI_HOME}:$PATH; cmdLogger -d=Bloomberg ProcessBloomberg; }
+30 4 * * * { PATH=${DI_HOME}:$PATH; cmdLogger -d=Algomi ProcessAlgomi; }

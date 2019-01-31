@@ -1,0 +1,21 @@
+<Configuration status="ERROR">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%t] : %-5level %logger{36} - %m%n"></PatternLayout>
+        </Console>
+        <RollingFile name="LogFiles" fileName="${env:COMET_LOGS}/COMET${env:CONFIG_POSTFIX}.log" filePattern="${env:COMET_LOGS}/${date:yyyy-MM}/COMET${env:CONFIG_POSTFIX}-%d{MM-dd-yyy}-%i.log.gz">
+            <PatternLayout pattern="%d [%t] %-5level %logger{36} - %m%n"></PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="500 MB"></SizeBasedTriggeringPolicy>
+                <OnStartupTriggeringPolicy></OnStartupTriggeringPolicy>
+            </Policies>
+            <DefaultRolloverStrategy max="20" fileIndex="max"></DefaultRolloverStrategy>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Root level="TRACE">
+            <AppenderRef ref="Console" level="INFO"></AppenderRef>
+            <AppenderRef ref="LogFiles" level="DEBUG"></AppenderRef>
+        </Root>
+    </Loggers>
+</Configuration>

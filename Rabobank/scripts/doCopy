@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# This script executes a cp command using all parameters passed in.
+#   Why this script is needed, is the cp command does not allow for
+#   redirecting the stderr to anything but a file, so this script
+#   takes stdout and stderr of the cp command and writes it to a file.
+#   type cat's the file to stdout of this script.
+
+#export DEBUG=true
+
+[ ! -z "$DEBUG" ] && MV_CP_CMD_OPT="-v"
+
+# First build an array of the parameters, with non command
+# qualifiers being quoted.
+for i in $(seq 1 $#); do
+  param="${!i}"
+  if [ ${param:0:1} != "-" ]; then
+     param="\"$param\""
+  fi
+  
+  paramArray[$((i-1))]="$param"
+done
+
+export TOOL_HOME=`dirname $0`
+export TOOL_TMP=${TOOL_HOME}/tmp
+
+mkdir -p ${TOOL_TMP}
+
+tmpErrorFile=${TOOL_TMP}/`basename $0`_tmpOutput.$$
+
+rm -f ${tmpErrorFile} # Make sure any pre-existing is gone.
+
+# Do copy sending stderr and stdout to a file.
+cmd="cp ${MV_CP_CMD_OPT} ${paramArray[@]} 2>>${tmpErrorFile} 1>>${tmpErrorFile}"
+[ ! -z "$DEBUG" ] && echo "DEBUG: $cmd"
+eval $cmd
+
+exitStatus=$?
+
+[ $exitStatus -ne 0 ] && echo "ERROR: doCopy Failure"
+
+# write file to stdout
+cat ${tmpErrorFile}
+
+# Cleanup
+rm -f ${tmpErrorFile}
+
+exit $exitStatus

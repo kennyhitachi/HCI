@@ -1,0 +1,52 @@
+#!/bin/bash
+
+function usage() {
+    echo
+    echo "Usage: `basename $0` [-d=<data-set>] <Command> ..."
+    echo
+}
+
+if [ $# -lt 1 ]; then
+    usage
+    exit 1
+fi
+
+DATA_SET_FOLDER=
+P1=$1
+if [[ "$P1" =~ ^-d=.* ]]; then
+   DATA_SET_FOLDER=${P1:3}/
+   shift # Eat up argument.
+   if [ -z "${DATA_SET_FOLDER:1}" ]; then
+       echo "ERROR: Empty <data-set> specification"
+       usage
+       exit 1
+   fi
+fi
+
+# We might have eaten up a parameter, so check to make sure there is still
+# at least one more left.
+if [ $# -lt 1 ]; then
+    usage
+    exit 1
+fi
+
+TOOLS_HOME=`dirname $0`
+COMMAND_NAME="`basename $1`"
+
+MAX_LOGS=7
+
+
+## TODO: Need to solidify how to properly execute commands with quoted strings like:
+## TODO:    echo "Hello World"  This evaluates to echo Hello World below.
+
+# Execute command
+mkdir -p ${TOOLS_HOME}/logs/${DATA_SET_FOLDER}
+LOGGING_COMMAND="$* 2>&1 > ${TOOLS_HOME}/logs/${DATA_SET_FOLDER}${COMMAND_NAME}_`date +%Y-%m-%dT%H:%M:%S`.log"
+eval "${LOGGING_COMMAND}"
+
+# Now clean out log files.
+for oneLog in `ls -t ${TOOLS_HOME}/logs/${DATA_SET_FOLDER}${COMMAND_NAME}_*.log 2>/dev/null | tail -n +$((MAX_LOGS+1))`; do
+  rm -f $oneLog
+done
+
+exit 0

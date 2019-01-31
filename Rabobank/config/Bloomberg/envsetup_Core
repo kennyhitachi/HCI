@@ -1,0 +1,11 @@
+export HCP_TENANT_NAME=hcpblm400
+
+#
+# Name of one of the valid namespaces in the tenant to validate
+#  connectivity and feature capabilties of the HCP.
+export HCP_TEST_NAMESPACE_NAME=blmrdrab400
+
+export DATASET_FIRM_NUMBER=3616
+
+export BLMIB_FNAME_PREFIX=IB_
+export BLMMSG_FNAME_PREFIX=BM_

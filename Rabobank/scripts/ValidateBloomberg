@@ -1,0 +1,186 @@
+#!/bin/bash
+
+MY_DIR=`dirname $0`
+CMD_NAME=`basename $0`
+TOOL_HOME=`readlink -e $MY_DIR`
+
+#export DEBUG=yes
+
+usage() {
+   echo
+   echo "Usage: `basename $0` <Collection-Folder> [<tmp-Folder>]"
+   echo
+}
+
+function cleanup() {
+   popd >/dev/null
+
+   if [ -z "$DEBUG" ]; then
+       rm -rf "${TMP_FOLDER}"
+   else 
+       echo "DEBUG: Temporary files left in: ${TMP_FOLDER}"
+   fi
+}
+
+if [ $# -lt 1 -o $# -gt 2 ]; then
+   usage
+
+   exit 1
+fi
+
+if [ ! -d "$1" ]; then
+   echo "ERROR: Non-existing folder specified as <Collection-Folder> input ($1)"
+   
+   usage
+   exit 1
+fi
+
+COLLECTION_FOLDER=`readlink -e $1` # Now have fully qualified path.
+
+TMP_FOLDER="$2/Validate.$$"
+# Make the tmp folder.  Defaulting to tool home tmp dir if not specified.
+if [ -z "$TMP_FOLDER" ]; then
+   TMP_FOLDER=${TOOL_HOME}/tmpValidate
+fi
+mkdir -p "${TMP_FOLDER}"
+TMP_FOLDER=`readlink -e "${TMP_FOLDER}"`
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Starting: ${COLLECTION_FOLDER}"
+
+pushd ${COLLECTION_FOLDER} >/dev/null
+
+trap cleanup SIGHUP SIGINT SIGTERM SIGQUIT SIGABRT
+
+# Make sure we have at least a manifest file.
+numFiles=`ls daily_manifest_*.txt 2>/dev/null | wc -l`
+if [ $numFiles -ne 1 ]; then
+    echo "ERROR: Unexpected number of daily_manifest_*.txt files. Expected: 1  Found: $numFiles"
+    cleanup
+    exit 1
+fi
+
+oneManifest=`ls daily_manifest_*.txt`
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Validating Manifest: ${oneManifest}"
+
+##
+## Validate manifest files against actual files.
+##
+
+# Make sure every file in manifest exists.
+numFiles=0
+while read line; do
+     oneFile=`echo -n $line | xargs`
+     [ -z "$oneFile" ] && continue
+
+     if [ ! -f "$oneFile" ]; then
+         echo "ERROR: File in Manifest is missing: $oneFile"
+         cleanup
+         exit 1
+     fi
+
+     ((numFiles++))
+
+done < ${oneManifest}
+
+# Make sure there are no unexpected files.
+numFound=`ls | wc -l`
+((numFound--))  # Subtract out the daily manifest file.
+numWget=`ls daily_manifest_wget* 2>/dev/null | wc -l`
+((numFound-=$numWget))  # Subtract out the daily manifest WGET file, if one.
+
+if [ $numFound -gt $numFiles ]; then
+    echo "ERROR: Found extra files in collection folder.  Expected: $numFiles  Found: $numFound"
+    cleanup
+    exit 1
+fi
+
+##
+## Make sure the correct number of the core files exist.
+##
+
+numFiles=`ls *.ib.*.xml 2>/dev/null | wc -l`
+if [ $numFiles -gt 1 ]; then
+    echo "ERROR: Unexpected number of IB files. Expected: 0 or 1  Found: $numFiles"
+    cleanup
+    exit 1
+fi
+
+numFiles=`ls *.msg.*.xml 2>/dev/null | wc -l`
+if [ $numFiles -gt 1 ]; then
+    echo "ERROR: Unexpected number of MSG files. Expected: 0 or 1  Found: $numFiles"
+    cleanup
+    exit 1
+fi
+
+numFiles=`ls *.dscl.*.xml 2>/dev/null | wc -l`
+if [ $numFiles -gt 1 ]; then
+    echo "ERROR: Unexpected number of DSCL files. Expected: 0 or 1  Found: $numFiles"
+    cleanup
+    exit 1
+fi
+
+numFiles=`ls *.att.*.tar.gz 2>/dev/null | wc -l`
+if [ $numFiles -gt 1 ]; then
+    echo "ERROR: Unexpected number of ATT tarball files. Expected: 0 or 1  Found: $numFiles"
+    cleanup
+    exit 1
+fi
+
+# if an attachment file exists, make sure it has one level folder structure.
+tarBall=`ls *.att.*.tar.gz 2>/dev/null`
+if [ ! -z "$tarBall" ]; then
+  numFolders=`tar tf "$tarBall" | grep "/$" | wc -l`
+
+  if [ 1 -ne $numFolders ]; then
+      echo "ERROR: Tarball file does not have expected one-level folder structure. Found: $numFolders"
+      cleanup
+      exit 1
+  fi
+fi
+
+##
+## Validate the attachments in tarball and references in IB/MSG files.
+##
+
+numInTarball=0
+tarBall=`ls *.att.*.tar.gz 2>/dev/null`
+tarBallListFile="${TMP_FOLDER}/tarball.lst"
+if [ ! -z "$tarBall" ]; then
+   # Get a listing of files in tarball excluding folder entries,
+   #    only actual file names, and sorted/unique
+   tar tf "$tarBall" | grep -v "/$" | awk 'BEGIN{FS="/"}{print $NF}' | sort -u > $tarBallListFile
+   numInTarball=`cat $tarBallListFile | wc -l`
+fi
+
+numInFiles=0
+inFilesListFile="${TMP_FOLDER}/inFiles.lst"
+rm -f "${inFilesListFile}*" # Remove any residual just in case
+fileList=`ls *.msg.*.xml *.ib.*.xml 2>/dev/null`
+for oneFile in ${fileList}; do
+    ${TOOL_HOME}/XMLTagExtractor FileID $oneFile -m -q -f -o - \
+       | grep "<FileID>" | cut -d ">" -f 2 | cut -d "<" -f 1 >> "${inFilesListFile}.unsorted"
+done
+# Translate all encoded XML special characters.
+sed -i -e "s/\&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&apos;/'/g; s/&quot;/\"/g" "${inFilesListFile}.unsorted"
+sort -u "${inFilesListFile}.unsorted" -o "${inFilesListFile}"
+numInFiles=`cat ${inFilesListFile} | wc -l`
+
+# Make sure the file count matches
+if [ $numInTarball -ne $numInFiles ]; then
+    echo "ERROR: Unexpected difference in number of actual attachments and number of references. numInTarball: $numInTarball  numInFiles: $numInFiles"
+    cleanup
+    exit 1
+fi
+
+# Now make sure the list of files are the same
+if [ -f $tarBallListFile -a -f $inFilesListFile ]; then
+  diff -q $tarBallListFile $inFilesListFile > /dev/null || {
+    echo "ERROR: List of Files in ATT tarball does not equal list generated from IB/MSG files."
+    cleanup
+    exit 1
+  }
+fi
+
+cleanup
+exit 0

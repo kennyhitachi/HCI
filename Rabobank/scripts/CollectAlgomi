@@ -1,0 +1,157 @@
+#!/bin/bash
+
+COMMAND_NAME=`basename $0`
+
+#export DEBUG=true
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Algomi
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+[ ! -z "$DEBUG" ] && MV_CP_CMD_OPT="-v"
+
+usage() {
+   echo
+   echo "usage: ${COMMAND_NAME} <Input-Folder> <Output-Folder> <Failure-Folder>"
+   echo
+}
+
+
+if [ $# -ne 3 ]; then
+    echo "ERROR: Invalid number of command paramters"
+
+    usage;
+
+    exit 1
+fi
+
+INPUT_FOLDER="$1"
+
+if [ ! -d "$INPUT_FOLDER" ]; then
+   echo "ERROR: <Input-Folder> does not exist. (${INPUT_FOLDER})"
+
+   usage;
+   exit 1
+fi
+
+# Get the full absolute path.  Will make it less error prone below.
+INPUT_FOLDER="`readlink -e $INPUT_FOLDER`"
+
+OUTPUT_FOLDER="$2"  # And construct as full path
+# Make sure output folder is created.
+mkdir -p "${OUTPUT_FOLDER}" || { echo "ERROR: Failed to construct output folder: ${OUTPUT_FOLDER}"; exit 1; }
+
+# Get the full absolute path.  Will make it less error prone below.
+OUTPUT_FOLDER="`readlink -e $2`"
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Using output folder: ${OUTPUT_FOLDER}"
+
+# Setup FAILURE_FOLDER. It could be a relative path. If so, need to include the
+#   current location as the front of the path.  It might not exist yet and don't 
+#   want to unless necessary, so can't do a readlink -e on it to resolve to full path.
+if [[ ${3:0:1} == "/" ]]; then
+  FAILURE_FOLDER="$3"
+else
+  FAILURE_FOLDER="`pwd`/$3"
+fi
+
+processStale() {
+   # Create failure folder
+   mkdir -p "${FAILURE_FOLDER}"
+   if [ $? -ne 0 ]; then
+       echo "ERROR: Failed to construct failure folder: ${FAILURE_FOLDER}"
+   else
+       # Move all the old files.
+       find . -maxdepth 1 -type f -mmin +${MAX_FILE_AGE} \
+             -exec mv {} ${FAILURE_FOLDER} \; \
+             -exec echo "WARN: Moved stale file from input area: {}" \;
+   fi
+}
+
+pushd ${INPUT_FOLDER} >/dev/null
+
+manifestList=`ls algomi.manifest.*.txt 2> /dev/null`
+for oneDailyManifest in $manifestList; do
+    echo "INFO: Processing Manifest: $oneDailyManifest"
+
+    collectionDate=`echo $oneDailyManifest | cut -d "." -f 3`
+    if [[ ! $collectionDate =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{6}[+-][0-9]{4}$ ]]; then
+       echo "WARN: Skipping manifest file. Missing valid date portion: $oneDailyManifest"
+       continue; 
+    fi
+    dateFolder=${collectionDate/-/\/}
+
+    # Make sure we have all the files.
+    manifestFiles=`cat $oneDailyManifest | tr -d '\r' | cut -d ":" -f 2 | tr -d " " | cut -d "," -f 1`
+    missingFileCount=0
+    for oneFile in $manifestFiles; do
+        if [ ! -f "$oneFile" ]; then
+            echo "WARN: Missing file ($oneFile) listed in manifest ($oneDailyManifest)."
+   
+            ((missingFileCount++))
+        fi
+    done
+
+   
+    if [ 0 -eq $missingFileCount ]; then
+
+      #Create the destination directory for the collection
+      destFolder="${OUTPUT_FOLDER}/RBINTL_data/${dateFolder}"
+      mkdir -p "${destFolder}" || { echo "ERROR: Failed to construct destination folder: ${destFolder}"; exit 1; }
+    
+      hadFailure=false
+      filesCollected=
+      for oneFile in $manifestFiles; do
+          [ ! -z "$DEBUG" ] && echo "DEBUG:  Processing File: $oneFile"
+
+          if [ ! -z "$DEBUG" ]; then 
+            echo "DEBUG:  [$oneFile] date:    $collectionDate"
+            echo "DEBUG:  Destination File: $destFolder/$oneFile"
+          fi
+
+          # copy/move file to destination area
+          ${TOOL_HOME}/doCopy $oneFile "${destFolder}/"
+          if [ $? -eq 0 ]; then
+            # Build a list so after all successful, we will remove files.
+            [ ! -z "$filesCollected" ] && filesCollected+=" "
+            filesCollected+="${oneFile}"
+          else
+            hadFailure=true
+            # Can't do much but complain
+            echo "ERROR: Failed to perform file copy for: $oneFile"
+            break;
+          fi 
+      done
+
+      # Copy manifest files in their current form to destination
+      ${TOOL_HOME}/doCopy $oneDailyManifest "${destFolder}"
+      [ $? -ne 0 ] && hadFailure=true
+
+      [ ! -z "$filesCollected" ] && filesCollected+=" "
+      filesCollected+="$oneDailyManifest"
+
+      # Have to set the permissions on the files now that we have copied them
+      # Coming from MQM system, the owner will not have read permissions.
+      chmod -R u+rw "${destFolder}"
+
+      if [ $hadFailure = false ]; then
+        # Successfully copied all files, now remove them from staging
+        # area.
+        [ ! -z "$filesCollected" ] && rm -f ${filesCollected} 
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to perform file remove files from staging area for collection: ${collectionDate}"
+            break;
+        fi
+      else
+        echo "ERROR: Failed to constructed collection: \"${collectionDate}\""
+        rm -rf ${destFolder}
+      fi
+    fi
+done
+
+processStale
+
+popd >/dev/null
+
+exit 0

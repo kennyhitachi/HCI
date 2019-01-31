@@ -1,0 +1,224 @@
+#!/bin/bash
+
+COMMAND_NAME=`basename $0`
+
+#export DEBUG=true
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Verint
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+[ ! -z "$DEBUG" ] && MV_CP_CMD_OPT="-v"
+
+usage() {
+   echo
+   echo "usage: ${COMMAND_NAME} <Input-Folder> <Output-Folder> <Failure-Folder> [<Tmp-Folder>]"
+   echo
+}
+
+
+if [ $# -ne 3 -a $# -ne 4 ]; then
+    echo "ERROR: Invalid number of command paramters"
+
+    usage;
+
+    exit 1
+fi
+
+INPUT_FOLDER="$1"
+
+if [ ! -d "$INPUT_FOLDER" ]; then
+   echo "ERROR: <Input-Folder> does not exist. (${INPUT_FOLDER})"
+
+   usage;
+   exit 1
+fi
+
+OUTPUT_FOLDER="$2"  # And construct as full path
+# Make sure output folder is created.
+mkdir -p "${OUTPUT_FOLDER}"
+[ $? -eq 0 ] || { echo "ERROR: Failed to construct output folder: ${OUTPUT_FOLDER}"; exit 1; }
+
+# Get the full absolute path.  Will make it less error prone below.
+OUTPUT_FOLDER="`readlink -e $2`"
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Using output folder: ${OUTPUT_FOLDER}"
+
+# Setup FAILURE_FOLDER. It could be a relative path. If so, need to include the
+#   current location as the front of the path.  It might not exist yet and don't 
+#   want to unless necessary, so can't do a readlink -e on it to resolve to full path.
+if [[ ${3:0:1} == "/" ]]; then
+  FAILURE_FOLDER="$3"
+else
+  FAILURE_FOLDER="`pwd`/$3"
+fi
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Using failure folder: ${FAILURE_FOLDER}"
+
+# Setup TMP_FOLDER if passed in.  Otherwise default to /tmp
+TMP_FOLDER=/tmp
+if [ $# -eq 4 ]; then
+    if [[ ${4:0:1} == "/" ]]; then
+      TMP_FOLDER="$4"
+    else
+      TMP_FOLDER="`pwd`/$4"
+    fi
+fi
+[ ! -z "$DEBUG" ] && echo "DEBUG: Using tmp folder: ${TMP_FOLDER}"
+
+processStale() {
+
+   #  Only process stale if we have a MAX_FILE_AGE
+   if [ -z "$MAX_FILE_AGE" ]; then
+     [ ! -z "$DEBUG" ] && echo "DEBUG: MAX_FILE_AGE not configured. Stale file processing skipped."
+     return;
+   fi
+
+   # Should already be at the top of INPUT_FOLDER.
+   folderName=`basename ${PWD}`
+   cd ..
+
+   # The Job Name can have spaces in it so the traditional for loop 
+   #    using output of find or ls does not work very well. So
+   #    unfortunately, we have to do it the hard way and look at each
+   #    and every file.
+   #
+   mkdir -p "${TMP_FOLDER}"
+   tmpFile="${TMP_FOLDER}/${COMMAND_NAME}.$$"
+   find ${folderName} -type f -mmin +${MAX_FILE_AGE} 2>/dev/null > "$tmpFile"
+
+   if [ 0 -ne `cat $tmpFile | wc -l` ]; then
+       # Create failure folder
+       mkdir -p "${FAILURE_FOLDER}"
+
+       if [ $? -ne 0 ]; then
+           echo "ERROR: Failed to construct failure folder: ${FAILURE_FOLDER}"
+       else
+           while read oneFolder; do
+               echo "WARN: Found stale/old file ($oneFolder). Moving to folder: ${FAILURE_FOLDER}"
+
+               srcFolderPart=`dirname "$oneFolder"`
+               filePart=`basename "$oneFolder"`
+               destFolder="${FAILURE_FOLDER}/${srcFolderPart}"
+               mkdir -p "$destFolder"
+               if [ $? -ne 0 ]; then
+                   echo "ERROR: Failed to construct failure folder: ${destFolder}"
+               else
+                   mv ${MV_CP_CMD_OPT} "${oneFolder}" "${destFolder}"
+               fi
+           done < ${tmpFile}
+       fi
+
+       # Cleanup any empty folders and clean them up except top-level
+       find ${folderName} -mindepth 1 -type d -empty -delete
+
+   fi
+
+   rm $tmpFile
+}
+
+##
+## MAIN
+##
+
+pushd ${INPUT_FOLDER} > /dev/null
+
+#
+# Move the files to the destination folder
+#
+
+# But only go into the code if we have at least one zip file, because we need to do the for loop
+#  in the manner here because files might have spaces in them.
+
+
+# Make sure there is something to work on.  Otherwise the following for below will not behave
+#   properly.
+[ 0 -eq `ls * 2>/dev/null | wc -l` ] && { popd > /dev/null; exit 0; } # Nothing to work on.
+
+#
+# First level sanity check to make sure that we don't have more colletions
+#   for any jobName than expected.
+#   This is an indication that somethign went wrong.
+find . -maxdepth 1 -type d ! -name "." | cut -d "/" -f 2 | cut -d ";" -f 1 | cut -d "." -f 2 | sort | uniq -c | \
+while read count jobName; do
+   maxVarName="MAX_`echo $jobName | tr '[:lower:]' '[:upper:]' | tr ' ' '_'`_COLLECTIONS"
+
+   # Get the max count.
+   maxCount=${!maxVarName}
+
+   # If there is no setting, we will assume to be allowing any number
+   #    of collections for this type.
+   if [ -z "$maxCount" ]; then
+     [ ! -z "$DEBUG" ] && echo "DEBUG: No Maximum configured for '$jobName'"
+     continue;  # No setting.  Going to accept all found.
+   fi
+
+   if [ $count -gt $maxCount ]; then
+      echo "ERROR: Found invalid number of collections. No collections processed."
+      echo "ERROR: For '$jobName' found $count expected no more than $maxCount"
+
+      exit 1
+   fi
+done
+
+#  Depending how the above exited (note that a subprocess is started)
+status=$?
+[ $status -ne 0 ] && exit $status
+
+# So if got here, we can process all the folders.
+
+mkdir -p "${OUTPUT_FOLDER}"
+
+for oneFolder in *; do
+    if [ ! -d "$oneFolder" ]; then
+        echo "WARN: Moving unexpected non-diretory file to failure folder: $oneFolder"
+        mkdir -p "${FAILURE_FOLDER}"
+        mv ${MV_CP_CMD_OPT} "${oneFolder}" ${FAILURE_FOLDER}
+        continue;
+    fi
+
+    # CD_Mappings is the last file written
+    # If it doesn't exist, skip it for now.
+    if [ ! -f "${oneFolder}/CD_Mappings.xml" ]; then
+        echo "WARN: Skipping folder as CD_Mappings.xml file does not exist: $oneFolder"
+        continue;
+    fi
+
+    # Break apart the folder name
+    # Expected layout:
+    #    <RegionCode>.<JobName>;<Session/Date-Info>
+    firstPart=`echo "$oneFolder" | cut -d ";" -f 1`
+    secondPart=`echo "$oneFolder" | cut -d ";" -f 2`
+    regionCode=`echo $firstPart | cut -d "." -f 1`
+    jobName=`echo $firstPart | cut -d "." -f 2`
+    
+    # Don't process if the parsing above produced something unreasonable
+    #  1) parsing for first part (before) ';' is blank
+    #  2) Attempted parsing did not produce different first part from full name
+    #  3) Parsing for regionCode didn't produce anything different from first part
+   
+    if [ -z "$firstPart" -o "$firstPart" == "$oneFolder" -o "$regionCode" == "$firstPart" \
+         -o -z "$secondPart" -o -z "$regionCode" -o -z "$jobName" ]; then
+        echo "WARN: Moving folder with unexpected name format to failure folder: $oneFolder"
+        mkdir -p "${FAILURE_FOLDER}"
+        mv ${MV_CP_CMD_OPT} "${oneFolder}" ${FAILURE_FOLDER}
+
+        continue;
+    fi
+
+    regionFolder="${OUTPUT_FOLDER}/${regionCode}_data"
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Moving folder ($oneFolder) to ${regionFolder}"
+
+    mkdir -p "${regionFolder}"
+    mv "$oneFolder" "${regionFolder}/${jobName};${secondPart}"
+    chmod -R u+rw "${regionFolder}/${jobName};${secondPart}"
+    
+done
+
+#  See if there are any stale files.
+processStale
+
+popd > /dev/null
+
+exit 0

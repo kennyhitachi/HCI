@@ -1,0 +1,117 @@
+#!/bin/bash
+
+MY_DIR=`dirname $0`
+CMD_NAME=`basename $0`
+TOOL_HOME=`readlink -e $MY_DIR`
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Algomi
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+usage() {
+   echo
+   echo "Usage: `basename $0` <Collection-Folder> [<tmp-Folder>]"
+   echo
+}
+
+function cleanup() {
+   popd >/dev/null
+}
+
+if [ $# -lt 1 -o $# -gt 2 ]; then
+   usage
+
+   exit 1
+fi
+
+if [ ! -d "$1" ]; then
+   echo "ERROR: Non-existing folder specified as <Collection-Folder> input ($1)"
+   
+   usage
+   exit 1
+fi
+
+COLLECTION_FOLDER=`readlink -e $1` # Now have fully qualified path.
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Starting: ${COLLECTION_FOLDER}"
+
+pushd ${COLLECTION_FOLDER} >/dev/null
+
+trap cleanup SIGHUP SIGINT SIGTERM SIGQUIT SIGABRT
+
+# Make sure we have at least a manifest file.
+numFiles=`ls algomi.manifest*.txt 2>/dev/null | wc -l`
+if [ $numFiles -ne 1 ]; then
+    echo "ERROR: Unexpected number of algomi.manifest*.txt files. Expected: 1  Found: $numFiles"
+    cleanup
+    exit 1
+fi
+
+oneManifest=`ls algomi.manifest*.txt 2>/dev/null`
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Validating Manifest: ${oneManifest}"
+
+##
+## Validate manifest files against actual files.
+##
+
+# Make sure every file in manifest exists.
+numFiles=0
+manifestFileList=`cat $oneManifest | grep "File:" | cut -d ":" -f 2 | tr -d " " | cut -d "," -f 1`
+
+for oneFile in $manifestFileList; do
+    [ -z "$oneFile" ] && continue
+
+    if [ ! -f "$oneFile" ]; then
+        echo "ERROR: File in Manifest is missing: $oneFile"
+        cleanup
+        exit 1
+    fi
+
+    ((numFiles++))
+done
+
+# Make sure there are no unexpected files.
+numFound=`ls | wc -l`
+((numFound--))  # Subtract out the manifest file.
+
+if [ $numFound -ne $numFiles ]; then
+    echo "ERROR: Found incorrect number of files in collection folder.  Expected: $numFiles  Found: $numFound"
+    cleanup
+    exit 1
+fi
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Checking ChatRecords elements and countryCode: ${oneManifest}"
+
+for oneFile in $manifestFileList; do
+
+    expectedCountryCode=`echo $oneFile | cut -d "." -f 2`
+
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Examining File: $oneFile"
+
+    expectedElements=`grep "$oneFile" "$oneManifest" | tr -d " " | cut -d "," -f 2 | cut -d ":" -f 2`
+    foundElements=`${TOOL_HOME}/XSLTRun -xsl:${TOOL_CONFIG}/ExtractChatRegions.xslt -s:${oneFile} \
+          | grep "<ChatRecord>" | wc -l`
+
+    if [ $expectedElements -ne $foundElements ]; then
+        echo "ERROR: File $oneFile contains unexpected number of ChatRecords.  Expected: $expectedElements  Found: $foundElements"
+        cleanup
+        exit 1
+    fi
+
+    # Validate that every ChatRecord contains at least one countryCode that is the same as the file.
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Validating existing countryCode: $expectedCountryCode"
+    invalidRecordCount=`${TOOL_HOME}/XSLTRun -xsl:${TOOL_CONFIG}/ExtractChatRegions.xslt -s:${oneFile} \
+         | grep "<ChatRecord>" | grep -v "$expectedCountryCode" | wc -l`
+    if [ $invalidRecordCount -ne 0 ]; then
+        echo "ERROR: File $oneFile contains $invalidRecordCount ChatRecords that does not contain expected countryCode ($expectedCountryCode)."
+        cleanup
+        exit 1
+    fi
+done
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Done"
+
+cleanup
+exit 0

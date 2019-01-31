@@ -1,0 +1,317 @@
+##
+## General settings.
+##  NOTE: TOOL_HOME and TOOL_CONFIG_BASE must be set prior to usage of this
+##     script content.
+##
+
+# Maximum number of days to "remember" collections in the history.log file.
+MAX_HISTORY_IN_DAYS=7
+
+# Maximum number of minutes for stray files to sit around in staging area
+#   before moved to Quarantine.
+MAX_FILE_AGE=$((60*24))
+
+######
+######  DO NOT CHANGE BEYOND THIS POINT
+######
+
+# Core names
+RAW_NAME=RawData
+TRANSFORM_NAME=TransformData
+
+export NO_MAPPING_REGION_NAME=NoMap
+
+export UNKNOWN_REGION_NAME=Unknown
+export UNKNOWN_ACCOUNT_VALUE=Unknown
+export UNKNOWN_ACCOUNT_DEFAULT_VALUE=Unknown
+
+# Config variables.
+export CONFIG_POSTFIX=
+if [ ! -z "$SUBSET_NAME" ]; then
+   export CONFIG_POSTFIX="_${SUBSET_NAME}"
+fi
+
+[ ! -z "$DEBUG" ] && MV_CP_CMD_OPT=-v
+
+##
+## General environment settings
+##
+export TOOL_LIBS=${TOOL_HOME}/lib
+export TOOL_LOGS=${TOOL_HOME}/logs/${DATA_SET}
+export TOOL_CONFIG=${TOOL_CONFIG_BASE}/${DATA_SET}
+export TOOL_TMP=${TOOL_HOME}/tmp/${DATA_SET}
+export TOOL_LOCKS=${TOOL_HOME}/locks/${DATA_SET}
+
+if [ "${DATA_SET}" == "${NEW_VERINT_DATA_SET}" ]; then
+ # override Tool specifics with the sub module
+ export TOOL_LOGS=${TOOL_HOME}/logs/${SUB_SET}
+ export TOOL_CONFIG=${TOOL_CONFIG_BASE}/${SUB_SET}
+ export TOOL_TMP=${TOOL_HOME}/tmp/${SUB_SET}
+ export TOOL_LOCKS=${TOOL_HOME}/locks/${SUB_SET}
+fi
+
+
+export COMET_LIBS=${TOOL_LIBS}
+export COMET_LOGS=${TOOL_LOGS}
+
+export LOCK_FILE="${TOOL_LOCKS}/`basename $0`${CONFIG_POSTFIX}"
+export PID_FILE="${TOOL_TMP}/`basename $0`${CONFIG_POSTFIX}.pid"
+
+export COMET_PAUSE_FILE=${TOOL_TMP}/comet${CONFIG_POSTFIX}.pause
+export COMET_STOP_FILE=${TOOL_TMP}/comet${CONFIG_POSTFIX}.stop
+
+# XML Tag for Message Attachment
+export MSGATT_METADATA_TAG=References
+
+# String appended to the end metadata file
+export METADATA_FILE_POSTFIX=_Metadata
+
+#Extension appended to the end of the attachment metadata file
+export ATT_METADATA_FILE_EXT=att
+
+# Name of temporary file to use when doing XSLT tranforms.
+export XSLT_TMP_FILE=xslt_input.xml
+
+##
+## If there is a data set specific POST envsetup file, then load it.
+##
+DATA_SET_CONFIG_FILE="${TOOL_CONFIG}/envsetup_Core"
+if [ -f ${DATA_SET_CONFIG_FILE} ]; then
+   . ${DATA_SET_CONFIG_FILE}
+fi
+
+DATA_SET_CONFIG_FILE="${TOOL_CONFIG}/envsetup${CONFIG_POSTFIX}"
+if [ -f ${DATA_SET_CONFIG_FILE} ]; then
+   . ${DATA_SET_CONFIG_FILE}
+fi
+
+
+###
+### Various general purpose functions
+###
+
+EXIT_SUCCESS=0
+EXIT_ERROR=1
+EXIT_WARNING=2
+
+log_timestamp() {
+
+    inMsg="$1"
+    [ -z "$inMsg" ] && inMsg="(none)"
+
+    if [ ! -z "$DEBUG" ]; then
+        echo "DEBUG: TIMESTAMP - `date +%Y-%m-%dT%H:%M:%S%z` Message: $inMsg"
+    else
+        echo "INFO: TIMESTAMP - `date +%Y-%m-%dT%H:%M:%S%z` Message: $inMsg"
+    fi
+}
+
+init_report_counters() {
+    RunStartTime=`date +%Y-%m-%dT%T%z`
+
+    # Initialize all the counters we need.
+    for idx in $(seq 0 $((${#OBJECT_TYPES[@]}-1))); do
+      ItemsProcessed[$idx]=0
+    done
+
+    # Setup counters to zero
+    IngestFailureCount=0
+    ValidationFailureCount=0
+    DuplicateFailureCount=0
+    ResidualFileFailureCount=0
+    CollectFileWarningCount=0
+    CollectFileFailureCount=0
+}
+
+report_status() {
+    exitCode=$1
+    inMsg="$2"
+
+    RunEndTime=`date +%Y-%m-%dT%T%z`
+
+    [ -z "$inMsg" ] && inMsg="(none)"
+    case $exitCode in
+    $EXIT_SUCCESS)
+       exitCodeString="SUCCESS"
+       ;;
+    $EXIT_ERROR)
+       exitCodeString="ERROR"
+       ;;
+    $EXIT_WARNING)
+       exitCodeString="WARNING"
+       ;;
+    *)
+       exitCodeString=$exitCode
+       ;;
+    esac
+
+    # Build strings of the object types and Items processed for easier display later.
+    lastIdx=$((${#OBJECT_TYPES[@]}-1))
+    for idx in $(seq 0 $lastIdx); do
+       ObjectTypesList+="\"${OBJECT_TYPES[$idx]}\""
+       ObjectCountsList+="${ItemsProcessed[$idx]}"
+       [ $idx -lt $lastIdx ] && { ObjectTypesList+=", "; ObjectCountsList+=", "; }
+    done
+
+    #
+    # Report to stdout
+    #
+    echo
+    echo "Exit Status: $exitCodeString"
+    echo "Message:     $inMsg"
+    
+    echo 
+    echo "Statistics"
+    echo "  Object Types:         [ ${ObjectTypesList} ]"
+    echo "  Processed Items:      [ ${ObjectCountsList} ]"
+    echo
+
+    [ 0 -ne $IngestFailureCount ]       && echo "  Ingest Failure:        ${IngestFailureCount}"
+    [ 0 -ne $ValidationFailureCount ]   && echo "  Validation Failure:    ${ValidationFailureCount}"
+    [ 0 -ne $DuplicateFailureCount ]    && echo "  Duplicate Failure:     ${DuplicateFailureCount}"
+    [ 0 -ne $ResidualFileFailureCount ] && echo "  Residual File Failure: ${ResidualFileFailureCount}"
+    [ 0 -ne $CollectFileWarningCount ]  && echo "  Collect File Warning:  ${CollectFileWarningCount}"
+    [ 0 -ne $CollectFileFailureCount ]  && echo "  Collect File Failure:  ${CollectFileFailureCount}"
+
+
+    #
+    # Report to e-mail, if configured
+    #
+    [ ! -z "$STATUS_EMAIL_RECIPIENTS" ] && \
+    mail -s "[$exitCodeString] `basename $0` Data Ingestion Completion Status" ${STATUS_EMAIL_RECIPIENTS} <<EMAIL
+Message: $inMsg
+
+Statistics
+  Object Types:          [ ${ObjectTypesList} ]
+  Processed Items:       [ ${ObjectCountsList} ]
+
+  Ingest Failure:        ${IngestFailureCount}
+  Validation Failure:    ${ValidationFailureCount}
+  Duplicate Failure:     ${DuplicateFailureCount}
+  Residual File Failure: ${ResidualFileFailureCount}
+  Collect File Warning:  ${CollectFileWarningCount}
+  Collect File Failure:  ${CollectFileFailureCount}
+EMAIL
+
+   #
+   # Report to Search Console, if configured
+   #
+   if [ ! -z "$SEARCH_CONSOLE_HOST" ]; then
+     #
+     # Build out JSON formatted status
+     #
+     mkdir -p "${TOOL_TMP}"
+     tmpStatusFile="${TOOL_TMP}/SearchConsolePOST.$$"
+
+     # Reformat dates (HACK HACK).  Might change to include timezone later.
+     tmpTime=`echo $RunStartTime | tr 'T' ' '`
+     startTime=`date -d "$tmpTime" -u +%Y-%m-%dT%H:%M:%SZ`
+     tmpTime=`echo $RunEndTime | tr 'T' ' '`
+     endTime=`date -d "$tmpTime" -u +%Y-%m-%dT%H:%M:%SZ`
+
+     SEARCH_CONSOLE_PWD=`echo -n "$SEARCH_CONSOLE_ENC_PWD" | base64 --decode`
+     
+     cat > "$tmpStatusFile" <<STATUSJSONP1
+{
+  "dataSetName":"${DATA_SET}",
+  "completionStatus":"${exitCodeString}",
+  "completionMessage":"${inMsg}",
+  "startTime":"$startTime",
+  "endTime":"$endTime",
+  "processedStats":[
+STATUSJSONP1
+
+    # Write in all the types and thier associated counts
+    lastIdx=$((${#OBJECT_TYPES[@]}-1))
+    for idx in $(seq 0 $lastIdx); do
+      echo -n "      {\"type\":\"${OBJECT_TYPES[$idx]}\",\"count\":\"${ItemsProcessed[$idx]}\"}" >> "$tmpStatusFile"
+      [ $idx -lt $lastIdx ] && echo ", " >> "$tmpStatusFile"
+    done
+    echo "" >> "$tmpStatusFile"
+
+    cat >> "$tmpStatusFile" <<STATUSJSONP2
+  ],
+  "failureStats":[
+      {"type":"Ingest Failure","count":"${IngestFailureCount}"},
+      {"type":"Validation Failure","count":"${ValidationFailureCount}"},
+      {"type":"Duplicate Failure","count":"${DuplicateFailureCount}"},
+      {"type":"Residual File Failure","count":"${ResidualFileFailureCount}"},
+      {"type":"Collect File Warning","count":"${CollectFileWarningCount}"},
+      {"type":"Collect File Failure","count":"${CollectFileFailureCount}"}
+  ],
+  "user":"$SEARCH_CONSOLE_USER",
+  "password":"$SEARCH_CONSOLE_PWD"
+}
+STATUSJSONP2
+     
+#echo "curl -s -i -H "Content-Type: application/json" -d @$tmpStatusFile http://${SEARCH_CONSOLE_HOST}:8080/restapi/services/audit"
+#cat $tmpStatusFile
+     curl -s -i -H "Content-Type: application/json" -d @$tmpStatusFile http://${SEARCH_CONSOLE_HOST}:8080/restapi/services/audit
+     if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to post status to search console!!"
+     fi
+
+     rm -f "$tmpStatusFile"
+   fi
+}
+
+extract_trap_cmd() {
+  printf '%s\n' "$3"
+}
+
+add_exit_trap() {
+  if [ ! -z "$1" ]; then
+    CURRENT_TRAP=`eval "extract_trap_cmd $(trap -p EXIT)"`
+    NEW_TRAP="$CURRENT_TRAP"
+    if [ ! -z "$NEW_TRAP" ]; then
+      NEW_TRAP+="; "
+    fi
+
+    NEW_TRAP+="$1"
+
+    trap "$NEW_TRAP" EXIT
+  fi
+}
+
+##
+## PID function for tracking.
+##
+remove_pidfile() {
+    echo "INFO: Removing pid file (${PID_FILE})"
+    rm -rf ${PID_FILE} 2>&1 > /dev/null
+}
+
+create_pidfile() {
+    mkdir -p `dirname ${PID_FILE}`
+
+    if mkdir ${PID_FILE} &>/dev/null; then
+       echo "INFO: Created pid file (${PID_FILE})"
+       touch ${PID_FILE}/$$
+    else
+       echo "ERROR: Exiting - Unable to construct pid file (${PID_FILE})"
+       exit 1
+    fi
+
+    add_exit_trap 'remove_pidfile'
+}
+
+##
+## Lock function to ensure only one instance
+##
+release_lock() {
+    echo "INFO: Removing lock (${LOCK_FILE})"
+    rm -rf ${LOCK_FILE} 2>&1 > /dev/null
+}
+
+get_lock() {
+    mkdir -p `dirname ${LOCK_FILE}`
+
+    if mkdir ${LOCK_FILE} &>/dev/null; then
+       echo "INFO: Acquired lock (${LOCK_FILE})"
+    else
+       echo "ERROR: Exiting - Unable to acquire lock (${LOCK_FILE})"
+       exit 1
+    fi
+
+    add_exit_trap 'release_lock'
+}

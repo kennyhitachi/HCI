@@ -1,0 +1,14 @@
+#!/bin/bash
+
+MY_DIR=`dirname $0`
+XMLTOOL_HOME=`readlink -e $MY_DIR`
+XMLTOOL_LIBS="${XMLTOOL_HOME}/lib"
+
+CLASSPATH=${XMLTOOL_LIBS}/Rabobank.jar:${XMLTOOL_LIBS}/COMET.jar
+CLASSPATH=${CLASSPATH}:${XMLTOOL_LIBS}/commons-cli-1.2.jar:${XMLTOOL_LIBS}/log4j-api-2.0.2.jar:${XMLTOOL_LIBS}/log4j-core-2.0.2.jar
+
+export CLASSPATH
+
+java ${XMLPROCESSOR_DEFINES} nl.rabobank.tools.XMLTagExtractor $*
+
+exit $?

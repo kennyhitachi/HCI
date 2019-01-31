@@ -1,0 +1,302 @@
+#!/bin/bash
+
+COMMAND_NAME=`basename $0`
+
+#export DEBUG=true
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Bloomberg
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+[ ! -z "$DEBUG" ] && MV_CP_CMD_OPT="-v"
+
+usage() {
+   echo
+   echo "usage: ${COMMAND_NAME} <Input-Folder> <Output-Folder> <Failure-Folder>"
+   echo
+}
+
+processStale() {
+   # Create failure folder
+   mkdir -p "${FAILURE_FOLDER}"
+   if [ $? -ne 0 ]; then
+       echo "ERROR: Failed to construct failure folder: ${FAILURE_FOLDER}"
+   else
+       # Move all the old files.
+       find . -maxdepth 1 -type f ! -name "*_current.*" -mmin +${MAX_FILE_AGE} \
+             -exec mv {} ${FAILURE_FOLDER} \; \
+             -exec echo "WARN: Moved stale file from input area: {}" \;
+   fi
+}
+
+# Used to get a list of lines with a certain pattern from the input file
+getLinesWithPattern() {
+  inputFile=$1
+  pattern="$2"
+
+  cat "$inputFile" | tr -d " " | grep -e "$pattern" | sort | \
+  while read oneFile; do
+     echo ${oneFile%.*}
+  done
+}
+
+processAccountSet() {
+    destFolder="$1"
+
+    [ ! -z "$DEBUG" ] && echo "DEBUG:  Setting permissions on files in Folder: $destFolder"
+    # Have to set the permissions on the files now that we have copied them
+    # Coming from MQM system, the owner will not have read permissions.
+    chmod -R u+rw "${destFolder}"
+
+    pushd "${destFolder}" > /dev/null
+
+    # Note:
+    #  Have to do somethign really goofy because the gpg command does not send
+    #    output to STDOUT.  Instead it sends it to STDERR. And just "appending"
+    #    STDERR to STDOUT via (2>&1) doesn't seem to work. So will do a little
+    #    trick and write output to file.
+    mkdir -p ${TOOL_TMP}
+    gpgOutputFile=${TOOL_TMP}/gpg.out.$$
+
+    # Process all the encrypted files.
+    for oneSigFile in `ls *.sig 2>/dev/null`; do
+
+        outputFile=${oneSigFile%.*}
+        inputFile=${outputFile}.gpg
+
+        [ ! -z "$DEBUG" ] && echo "DEBUG: Decrypting file: $inputFile"
+
+        # Now need to decrypt the file.
+        [ ! -z "$DEBUG" ] && echo "gpg --yes -o \"$outputFile\" -d \"$inputFile\""
+        gpg --yes -o "$outputFile" -d "$inputFile" 2>&1 | tee $gpgOutputFile > /dev/null
+        if [ $? -ne 0 ]; then
+            cat $gpgOutputFile
+            rm -f $gpgOutputFile
+
+            echo "ERROR: Failed to decrypt file: $inputFile"
+            return 1
+        else
+            # if Debug output "success" output
+            [ ! -z "$DEBUG" ] && cat $gpgOutputFile
+
+            [ ! -z "$DEBUG" ] && echo "DEBUG: Verifying file signature: $outputFile"
+
+            # Verify File
+            [ ! -z "$DEBUG" ] && echo "gpg --verify \"$oneSigFile" \"$outputFile""
+            gpg --verify "$oneSigFile" "$outputFile" 2>&1 | tee $gpgOutputFile > /dev/null
+            if [ $? -ne 0 ]; then
+                cat $gpgOutputFile
+                rm -f $gpgOutputFile
+
+                echo "ERROR: File signature verification failed: $outputFile"
+
+                rm -f "$outputFile" # Don't leave this around on failure.
+                return 1
+            fi
+
+            # if Debug output "success" output
+            [ ! -z "$DEBUG" ] && cat $gpgOutputFile
+            rm -f $gpgOutputFile
+        fi
+    done
+
+    #
+    # Success, so git rid of GPG and SIG files.
+    #
+    rm -f *.sig *.gpg
+
+    popd > /dev/null
+
+    return 0
+}
+
+
+##
+## MAIN START
+##
+
+if [ $# -ne 3 ]; then
+    echo "ERROR: Invalid number of command paramters"
+
+    usage;
+
+    exit 1
+fi
+
+INPUT_FOLDER="$1"
+
+if [ ! -d "$INPUT_FOLDER" ]; then
+   echo "ERROR: <Input-Folder> does not exist. (${INPUT_FOLDER})"
+
+   usage;
+   exit 1
+fi
+
+ExitCode=0
+
+# Get the full absolute path.  Will make it less error prone below.
+INPUT_FOLDER="`readlink -e $INPUT_FOLDER`"
+
+OUTPUT_FOLDER="$2"  # And construct as full path
+# Make sure output folder is created.
+mkdir -p "${OUTPUT_FOLDER}" || { echo "ERROR: Failed to construct output folder: ${OUTPUT_FOLDER}"; exit 1; }
+
+# Get the full absolute path.  Will make it less error prone below.
+OUTPUT_FOLDER="`readlink -e $2`"
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Using output folder: ${OUTPUT_FOLDER}"
+
+# Setup FAILURE_FOLDER. It could be a relative path. If so, need to include the
+#   current location as the front of the path.  It might not exist yet and don't 
+#   want to unless necessary, so can't do a readlink -e on it to resolve to full path.
+if [[ ${3:0:1} == "/" ]]; then
+  FAILURE_FOLDER="$3"
+else
+  FAILURE_FOLDER="`pwd`/$3"
+fi
+
+
+pushd "${INPUT_FOLDER}" >/dev/null
+
+#
+# Loop through each manifest file found
+#
+manifestList=`ls daily_manifest_*.txt | grep -v _current`
+for oneDailyManifest in $manifestList; do
+    echo "INFO: Processing Manifest: $oneDailyManifest"
+
+    collectionDate=`echo $oneDailyManifest | cut -d "." -f 1 | cut -d '_' -f 3`
+    if [[ ! $collectionDate =~ ^[0-9][0-9][0-9][0-9][0-9][0-9]$ ]]; then
+       echo "WARN: Skipping manifest file. Missing valid date portion: $oneDailyManifest"
+       continue; 
+    fi
+    dateFolder=`date +%Y-%m-%dT190000+0000 -d $collectionDate`
+
+    # Make sure we have all the files.
+    for oneFile in `cat $oneDailyManifest | tr -d '\r'`; do
+        if [ ! -f "$oneFile" ]; then
+            echo "WARN: Missing file ($oneFile) listed in manifest ($oneDailyManifest)."
+   
+            continue # Move on to next one.
+        fi
+    done
+
+    # Make sure for all the gpg files listed, there is a corresponding sig file.
+    GPGList=`getLinesWithPattern "$oneDailyManifest" "\.gpg"`
+    SIGList=`getLinesWithPattern "$oneDailyManifest" "\.sig"`
+    if [ "$GPGList" != "$SIGList" ]; then
+        echo "ERROR: Mismatched set of GPG and SIG files.  Collection invalid."
+
+        ExitCode=1
+        continue # Move on to next one.
+    fi
+    
+    #
+    # At this point, it appears we have a manifest with all the files
+    #
+    # Special Notes:  This will handle situation where daily manifest
+    #   can have multiple account in it.  The processing will separate
+    #   the accounts to separate folders and will also generate new
+    #   daily_manifest_* files for each account with only those files
+    #   in them.
+    #
+
+    hadFailure=false
+    filesCollected=
+    lastAccount=
+    destFolder=
+    for oneFile in `cat $oneDailyManifest | tr -d '\r' | sort`; do
+        [ ! -z "$DEBUG" ] && echo "DEBUG:  Processing File: $oneFile"
+
+        # Record file so cleaned up on success
+        [ ! -z "$filesCollected" ] && filesCollected+=" "
+        filesCollected+="${oneFile}"
+
+        fullAccountNumber=`echo $oneFile | cut -d '.' -f 1`
+        accountNumber=`echo $fullAccountNumber | tr -d "[:alpha:]"`
+
+        if [ ! -z "$DEBUG" ]; then 
+            echo "DEBUG:  [$oneFile] account: $accountNumber"
+            echo "DEBUG:  [$oneFile] date:    $collectionDate"
+        fi
+
+        # If we progressed to a new acount number, do some prep work.
+        if [ "$accountNumber" != "$lastAccount" ]; then
+
+          # if we are changing destination folders, process all files
+          #   for prior account
+          if [ ! -z "$destFolder" ]; then
+              processAccountSet "$destFolder"
+              if [ $? -ne 0 ]; then
+                hadFailure=true
+                break; # Outta Here.
+              fi
+          fi
+
+          destFolder="${OUTPUT_FOLDER}/RBINTL_data/${accountNumber}/${dateFolder}"
+          [ ! -z "$DEBUG" ] && echo "DEBUG:  Destination Folder: $destFolder"
+
+          mkdir -p "$destFolder"
+
+          # Copy manifest files in their current form to destination
+          ${TOOL_HOME}/doCopy daily_manifest*_${collectionDate}.* "${destFolder}"
+          [ $? -ne 0 ] && hadFailure=true
+
+          # Generate a manifest file for this account. In addition do the
+          #   fix up of removing CR characters, remove sig files, and remove
+          #   the .gpg file extension from files.
+          cat ${oneDailyManifest} | tr -d "\r" | \
+            grep -e "^${fullAccountNumber}\." | \
+            grep -v "\.sig" | \
+            sed 's/\.gpg//' > "${destFolder}/${oneDailyManifest}"
+          if [ $? -ne 0 ]; then
+             hadFailure=true
+             break;
+          fi
+
+          [ ! -z "$filesCollected" ] && filesCollected+=" "
+          filesCollected+="daily_manifest*_${collectionDate}.*"
+
+          lastAccount=$accountNumber
+        fi
+
+        # copy/move file to destination area
+        ${TOOL_HOME}/doCopy "$oneFile" "$destFolder"
+        if [ $? -ne 0 ]; then
+            hadFailure=true
+            # Can't do much but complain
+            echo "ERROR: Failed to perform file copy for: $oneFile"
+            break;
+        fi 
+    done
+
+    if [ $hadFailure = false ]; then
+      processAccountSet "${destFolder}"
+
+      if [ $? -eq 0 ]; then
+        # Successfully copied all files, now remove them from staging
+        # area.
+        [ ! -z "$filesCollected" ] && rm -f ${filesCollected} 
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to perform file remove files from staging area for collection: ${collectionDate}"
+            hadFailure=true
+        fi
+      else
+        hadFailure=true
+      fi
+    fi
+
+    if [ $hadFailure = true ]; then
+      echo "ERROR: Failed to constructed collection: \"${collectionDate}\""
+      [ ! -z "$destFolder" ] && rm -rf "${destFolder}"
+
+      ExitCode=1
+    fi
+done
+
+processStale
+
+popd >/dev/null
+
+exit $ExitCode

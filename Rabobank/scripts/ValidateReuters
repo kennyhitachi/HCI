@@ -1,0 +1,269 @@
+#!/bin/bash
+
+MY_DIR=`dirname $0`
+CMD_NAME=`basename $0`
+TOOL_HOME=`readlink -e $MY_DIR`
+
+#export DEBUG=yes
+
+usage() {
+   echo
+   echo "Usage: `basename $0` <Collection-Folder> [<tmp-Folder>]"
+   echo
+}
+
+function cleanup() {
+   popd >/dev/null
+
+   if [ -z "$DEBUG" ]; then
+       rm -rf "${TMP_FOLDER}"
+   else 
+       echo "DEBUG: Temporary files left in: ${TMP_FOLDER}"
+   fi
+}
+
+if [ $# -lt 1 -o $# -gt 2 ]; then
+   usage
+
+   exit 1
+fi
+
+if [ ! -d "$1" ]; then
+   echo "ERROR: Non-existing folder specified as <Collection-Folder> input ($1)"
+   
+   usage
+   exit 1
+fi
+
+COLLECTION_FOLDER=`readlink -e $1` # Now have fully qualified path.
+
+TMP_FOLDER="$2/${CMD_NAME}.$$"
+# Make the tmp folder.  Defaulting to tool home tmp dir if not specified.
+if [ -z "$TMP_FOLDER" ]; then
+   TMP_FOLDER=${TOOL_HOME}/tmp${CMD_NAME}
+fi
+mkdir -p "${TMP_FOLDER}"
+TMP_FOLDER=`readlink -e "${TMP_FOLDER}"`
+
+pushd ${COLLECTION_FOLDER} > /dev/null
+
+trap cleanup SIGHUP SIGINT SIGTERM SIGQUIT SIGABRT
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Starting: ${COLLECTION_FOLDER}"
+
+COLLECTION_FILELIST_MINIMUM="summary.xml reconcile.xml"
+COLLECTION_FILELIST_MESSAGES_ONLY="messages.zip"
+COLLECTION_FILELIST_WITH_ATTACHMENTS="${COLLECTION_FILELIST_MESSAGES_ONLY} attachments.zip"
+
+actualFileCount=`ls ${COLLECTION_FILELIST_MINIMUM} ${COLLECTION_FILELIST_WITH_ATTACHEMENTS} | wc -l`
+expectedFileCountWithoutData=`echo ${COLLECTION_FILELIST_MINIMUM} | wc -w`
+minimumFileCountWithData=`echo ${COLLECTION_FILELIST_MINIMUM} ${COLLECTION_FILELIST_MESSAGES_ONLY} | wc -w`
+maximumFileCountWithData=`echo ${COLLECTION_FILELIST_MINIMUM} ${COLLECTION_FILELIST_WITH_ATTACHMENTS} | wc -w`
+
+# build a list of what to check for on whether there are just messages or attachments too.
+checkList=""
+if [ $actualFileCount -ne $expectedFileCountWithoutData ]; then
+    if [ $actualFileCount -eq $minimumFileCountWithData ]; then
+        checkList="${COLLECTION_FILELIST_MESSAGES_ONLY}"
+    else
+        checkList="${COLLECTION_FILELIST_WITH_ATTACHMENTS}"
+    fi
+fi
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Processing Filelist: ${COLLECTION_FILELIST_MINIMUM} ${checkList}"
+
+##
+## Check all the checksums for files.
+##
+isValid=true
+for checkFile in ${COLLECTION_FILELIST_MINIMUM} ${checkList}; do
+
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Performing Checksum Check: $checkFile"
+
+    # Setup boolean as to whether this is a minimum required file or not.
+    if [ ! -f $checkFile ]; then
+      # File does not exist.
+      echo "ERROR: Missing required file (${COLLECTION_FOLDER}/${checkFile})."
+      isValid=false
+      break;
+    fi
+
+    if [ ! -f ${checkFile}.sha1 ]; then
+      echo "ERROR: Missing required file (${COLLECTION_FOLDER}/${checkFile}.sha1)."
+      isValid=false
+      break;
+    fi
+
+    computedChecksum=`sha1sum ${checkFile} | cut -d ' ' -f 1`
+    providedChecksum=`cat ${checkFile}.sha1` 
+    if [ "$computedChecksum" != "$providedChecksum" ]; then
+          echo "ERROR: File checksum mismatch for file (${COLLECTION_FOLDER}/${checkFile})"
+
+          isValid=false;
+          break
+    fi
+done
+  
+if [ $isValid = false ]; then
+   cleanup
+   exit 1
+fi
+
+numExpectedEvents=`${TOOL_HOME}/XMLTagExtractor NumberOfEvents -f -o - ${COLLECTION_FOLDER}/summary.xml | grep "<NumberOfEvents>" | cut -d ">" -f 2 | cut -d "<" -f 1`
+numExpectedChats=`${TOOL_HOME}/XMLTagExtractor -q -o - -f Chats ${COLLECTION_FOLDER}/reconcile.xml | grep "<Chats" | cut -d '"' -f 2`
+numExpectedAttachments=`${TOOL_HOME}/XMLTagExtractor NumberOfAttachments -f -o - ${COLLECTION_FOLDER}/summary.xml | grep "<NumberOfAttachments>" | cut -d ">" -f 2 | cut -d "<" -f 1`
+
+##
+##  Start breaking apart the collection and checking various pieces
+##
+
+numActualEvents=0
+numActualChats=0
+numActualAttachments=0
+
+# First validate zips are valid and do extraction for messages.zip into TMP_FOLDER
+if [ -f "messages.zip" ]; then
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Validating messages.zip files"
+
+    unzip -o messages.zip -d "${TMP_FOLDER}" > /dev/null 2>&1
+    [ $? -eq 0 ] || { echo "ERROR: File messages.zip file is corrupt."; cleanup; exit 1; }
+
+    if [ -f "attachments.zip" ]; then
+        [ ! -z "$DEBUG" ] && echo "DEBUG: Validating attachments.zip files"
+        unzip -qq -t attachments.zip > /dev/null 2>&1
+        [ $? -eq 0 ] || { echo "ERROR: File attachments.zip is corrupt."; cleanup; exit 1; }
+
+        numActualAttachments=`unzip -l ${COLLECTION_FOLDER}/attachments.zip 2>/dev/null | tail -1 | tr -s '[[:space:]]' | sed -e 's/^ //g' | cut -d " " -f 2`
+    fi
+
+    pushd ${TMP_FOLDER} > /dev/null
+
+    # Verify that messages.xml file was created.
+    if [ ! -f messages.xml ]; then
+        popd > /dev/null # pop TMP_FOLDER
+
+        echo "ERROR: messages.zip file did not contain messages.xml file."
+        cleanup
+        exit 1
+    fi
+
+    # Now extract the Headers and Chats for this messages.xml file for further evaluation
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Extracting Headers/Chat tags from messages.xml"
+    ${TOOL_HOME}/XMLTagExtractor Headers messages.xml -q -f
+    [ $? -ne 1 ] || { popd > /dev/null; echo "ERROR: Invalid XML encountered in messages.xml file."; cleanup; exit 1; }
+
+    ${TOOL_HOME}/XMLTagExtractor Chat messages.xml -m -o "${REU_FNAME_PREFIX}" -q -f
+
+    # Go get the TRMC Id out of the messages.xml file.
+    TRMCID=`grep ID Headers.xml 2>/dev/null | cut -d ">" -f 2 | cut -d "<" -f 1`
+    [ ! -z "${TRMCID}" ] || { popd > /dev/null; echo "ERROR: Could not find Compliance ID in messages.xml Headers section."; cleanup; exit 1; }
+
+    # Go get the collections parent folder name.
+    parentFolder=`dirname ${COLLECTION_FOLDER}`
+    TRMCID_FOLDER=`basename ${parentFolder}`
+
+    # There needs to be a match
+    if [ "${TRMCID}" != "${TRMCID_FOLDER}" ]; then
+       popd > /dev/null # pop TMP_FOLDER
+       echo "ERROR: Collection's Compliance ID does not match containing TRMC folder name. Expected $TRMCID as a parent folder."
+       cleanup
+       exit 1
+    fi
+
+    numActualEvents=`${TOOL_HOME}/XMLTagExtractor -f -m -o - Event messages.xml | grep "<Event>" | wc -l`
+    numActualChats=`ls ${REU_FNAME_PREFIX}* 2> /dev/null | wc -l`
+
+    ##
+    ## Verify the chats information with the reconcile.xml file (only if we have the right number)
+    ##
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Verifying Chat messages with reconcile.xml file"
+    if [ "$numExpectedChats" == "$numActualChats" ]; then
+
+        chatIdList=`${TOOL_HOME}/XMLTagExtractor -m -o - -f Identifier ${COLLECTION_FOLDER}/reconcile.xml | grep "<Identifier>" | cut -d ">" -f 2 | cut -d "<" -f 1`
+
+        # Create the reconcile chat files.
+        ${TOOL_HOME}/XMLTagExtractor -q -m -f -o ReconcileChat_ Chat ${COLLECTION_FOLDER}/reconcile.xml
+        [ $? -ne 1 ] || { popd >/dev/null; echo "ERROR: Unexpected failure in reconcile.xml file."; cleanup; exit 1; }
+
+        # Loop through the Reconcile Chats and make sure you find everything.
+        for oneReconcileChat in ReconcileChat_*; do
+
+           chatID=`${TOOL_HOME}/XMLTagExtractor -o - -f Identifier ${oneReconcileChat} | grep "<Identifier>" | cut -d ">" -f 2 | cut -d "<" -f 1`
+           [ ! -z "$chatID" ] || { popd >/dev/null; echo "ERROR: reconcile.xml file missing chat identifier"; cleanup; exit 1; }
+
+           [ ! -z "$DEBUG" ] && echo "DEBUG: Processing Reconcile Chat [$chatID]"
+
+           # Find a chat session with this id
+           chatFile=`grep -l "<Identifier>$chatID" ${REU_FNAME_PREFIX}*.xml 2>/dev/null`
+
+           # Validate that we got one and that we only got one.
+           [ ! -z "$chatFile" ] || { popd >/dev/null; echo "ERROR: Failed to find matching Chat from messages.xml for Chat ID (${chatID})."; cleanup; exit 1; }
+           numMatches=`echo "$chatFile" | wc -w`
+           [ 1 -eq $numMatches ] || { popd >/dev/null; echo "ERROR: Found Chat ID (${chatID}) in $numMatches Chat sessions."; cleanup; exit 1; }
+
+           # Now make sure all the messages are found in the chat session.
+           reconcileChatIDsFile="${TMP_FOLDER}/${CMD_NAME}_reconcileChatIDs.lst"
+           messageChatIDsFile="${TMP_FOLDER}/${CMD_NAME}_messageChatIDs.lst"
+           diffChatIDsFile="${TMP_FOLDER}/${CMD_NAME}_diffChatIDs.lst"
+      
+           grep "<MessageID>" "${oneReconcileChat}" | cut -d ">" -f 2 | cut -d "<" -f 1 | sort -u > "${reconcileChatIDsFile}"
+           grep "<MessageID>" "${chatFile}" | cut -d ">" -f 2 | cut -d "<" -f 1 | sort -u > "${messageChatIDsFile}"
+
+           # Do a diff between the messages ID and reconcile ID temp files.  Strip out any diff section headers and ignore
+           #   any lines that need to be removed from messages ChatIDs file
+           diff "${messageChatIDsFile}" "${reconcileChatIDsFile}" \
+                --new-line-format="MISSING: %L" --unchanged-line-format="MATCH: %L" --old-line-format="EXTRA: %L" > "${diffChatIDsFile}"
+
+           missingIDsCount=`cat "${diffChatIDsFile}" | grep "^MISSING:" | wc -l`
+           if [ ! -z "$DEBUG" ]; then
+               echo "DEBUG:     ReconcileMessageIDs: `cat "${reconcileChatIDsFile}" | wc -l`"
+               echo "DEBUG:     ChatMessageIDs:      `cat "${messageChatIDsFile}" | wc -l`"
+               echo "DEBUG:     Missing IDs:       ${missingIDsCount}"
+           fi
+           
+           if [ 0 -ne $missingIDsCount ]; then
+               echo "ERROR: Message IDs in reconcile.xml missing from messages.xml file. Count: $missingIDsCount"
+               if [ ! -z "$DEBUG" ]; then
+                   missingIDsList=`cat "${diffChatIDsFile}" | grep "^MISSING:" | cut -d " " -f 2- | tr "\n" " "`
+                   echo "DEBUG: Missing IDs: ${missingIDsList}"
+               fi
+
+               popd > /dev/null # pop TMP_FOLDER
+               cleanup
+               exit 1
+           fi
+
+           # Cleanup only if not running in debug
+           [ -z "$DEBUG" ] && rm -f "${reconcileChatIDsFile}" "${messageChatIDsFile}" "${diffChatIDsFile}"
+
+        done
+    fi
+
+    popd > /dev/null # pop TMP_FOLDER
+fi
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Verifying Event/Chat/Attachment counts with reconcile.xml file"
+
+# Verify the number of events in messages.xml with the summary.xml
+if [ "$numExpectedEvents" != "$numActualEvents" ]; then
+    echo "ERROR: Unexpected mismatched number of events. Found '$numActualEvents' in messages.xml, but expected '$numExpectedEvents'."
+    cleanup
+    exit 1
+fi
+
+# Verify the chats count
+if [ "$numExpectedChats" != "$numActualChats" ]; then
+    echo "ERROR: Unexpected mismatched number of Chat sessions. Found '$numActualChats' in messages.xml, but expected '$numExpectedChats'."
+    cleanup
+    exit 1
+fi
+
+# Verify the number of attachments
+if [ "$numExpectedAttachments" != "$numActualAttachments" ]; then
+    echo "ERROR: Unexpected mismatched number of attachments. Found '$numActualAttachments' in zip file, but expected '$numExpectedAttachments'."
+    cleanup
+    exit 1
+fi
+
+cleanup
+exit 0

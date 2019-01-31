@@ -1,0 +1,473 @@
+#!/bin/bash
+
+# General Algorithm:
+#   Take the originals from the MQ staging area and move to "RawData" work area.
+#   Validate the RawData content as valid for the for data type.
+#     - E.G. Validate checksums, etc.
+#     - Move failed content to Quarantine area.
+#   For any valid/complete collections, make sure we didn't already record it
+#     in the history.log file.
+#   Construct TransformData from RawData based on needs for specific data type:
+#     - For Example,
+#       + Expanding zip files.
+#       + Removing unnecessary checksum files.
+#       + Create extracted XML files for usage during processing.
+#   Ingest RawData to HCP.
+#   Ingest TransformData to HCP.
+#   Cleanup TransformData of any "temporary files", if any.
+#   Make sure there are no residual files, as that indicates a unexpected failure.
+#   Formulate a report and publish (e-mail, Search Console, etc.. as configured).
+
+#export DEBUG=true
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Reuters
+export OBJECT_TYPES=("Reuters Messenger")
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+# Only allow one instance for a given config at a time.
+get_lock
+
+# Initialize Counters
+init_report_counters
+
+ExitCode=$EXIT_SUCCESS  # Assume the best
+ExitMessage="(none)"
+
+# Make sure we have files
+STAGING_FOLDER="${STAGING_AREA}"
+if [ ! -d "${STAGING_FOLDER}" ]; then
+    ExitCode=$EXIT_ERROR
+
+    report_status $ExitCode "ERROR: Staging Folder (${STAGING_FOLDER}) does not exist."
+
+    exit $ExitCode;
+fi
+STAGING_FOLDER=`readlink -e "${STAGING_FOLDER}"`
+
+echo "INFO: [${DATA_SET}] Starting Processing"
+log_timestamp
+
+#
+# Setup folders/files and variables to them.
+#
+mkdir -p ${PROCESSING_AREA} ${QUARANTINE_AREA}
+
+RAW_FOLDER=`readlink -e ${PROCESSING_AREA}`/${RAW_NAME}
+TRANSFORM_FOLDER=`readlink -e ${PROCESSING_AREA}`/${TRANSFORM_NAME}
+FAILURE_FOLDER=`readlink -e ${QUARANTINE_AREA}`
+
+PROCESSING_LOG=`readlink -e ${PROCESSING_AREA}`/history.log
+
+mkdir -p ${RAW_FOLDER} ${TRANSFORM_FOLDER}
+
+rm -rf ${TOOL_TMP} # Start fresh
+mkdir -p ${TOOL_TMP}
+
+# See if we have something to process from Staging.
+if [ `ls "${STAGING_FOLDER}" | wc -l` -lt 1 ]; then
+   ExitCode=$EXIT_WARNING
+   ExitMessage="No files found in staging area: ${STAGING_FOLDER}"
+
+   echo "WARN: $ExitMessage"
+else
+
+  ##
+  # Collect full collection(s) from staging area and place in RAW_FOLDER area
+  ##
+  pushd ${STAGING_FOLDER} > /dev/null
+  for oneRegion in `ls -d * 2> /dev/null`; do
+   if [ -d "${oneRegion}" ]; then
+       [ ! -z "${DEBUG}" ] && echo "DEBUG: Processing region: ${oneRegion}"
+
+       pushd $oneRegion > /dev/null
+       for oneTRMC in `ls -d * 2> /dev/null`; do
+           if [ -d "${oneTRMC}" ]; then
+               [ ! -z "${DEBUG}" ] && echo "DEBUG: Processing TRMC: ${oneRegion}/${oneTRMC}"
+               TMP_COLLECT_FILE=${TOOL_TMP}/`basename $0`.$$
+
+               ${TOOL_HOME}/Collect${DATA_SET} ${oneTRMC} ${RAW_FOLDER}/${oneRegion}/${oneTRMC} ${FAILURE_FOLDER}/${oneRegion}/${oneTRMC} | tee ${TMP_COLLECT_FILE}
+               collectWarnings=`grep "WARN:" $TMP_COLLECT_FILE | wc -l`
+               ((CollectFileWarningCount+=${collectWarnings}))
+               collectErrors=`grep "ERROR:" $TMP_COLLECT_FILE | wc -l`
+               ((CollectFileFailureCount+=${collectErrors}))
+
+               rm -f ${TMP_COLLECT_FILE}
+
+               if [ 0 != $CollectFileWarningCount ]; then
+                   ExitCode=$EXIT_WARNING
+                   ExitMessage="Detected Warning(s) during file collection from: ${STAGING_FOLDER}"
+               fi
+               if [ 0 != $CollectFileFailureCount ]; then
+                   ExitCode=$EXIT_ERROR
+                   ExitMessage="Detected Error(s) during file collection from: ${STAGING_FOLDER}"
+               fi
+           fi 
+       done
+       popd > /dev/null
+   fi
+  done
+  popd > /dev/null
+fi
+
+##
+# For all the complete collections we grabbed, it is time to process them.
+##
+pushd "${RAW_FOLDER}" > /dev/null
+
+for oneRegion in `ls -d * 2> /dev/null`; do
+    if [ ! -d "$oneRegion" ]; then
+       echo "WARN: Found non-directory file in Processing area. Ignored. ($oneRegion)"
+
+       continue
+    fi
+
+    # Head down into region and process next level.
+    pushd "${oneRegion}" > /dev/null
+ 
+    for oneTRMC in `ls -d * 2> /dev/null`; do
+
+        if [ ! -d "$oneTRMC" ]; then
+           echo "WARN: Found non-directory file in region folder. Ignored. ($oneTRMC)"
+
+           continue
+        fi
+
+        ###
+        ### Prepare Raw Files
+        ###
+        echo "INFO: [${DATA_SET}/${oneRegion}/${oneTRMC}] Starting Processing"
+        log_timestamp
+
+        pushd "${oneTRMC}" > /dev/null
+
+        # Now process each of the collection folder for this region.
+        for collectionFolder in `ls -d * 2> /dev/null`; do
+
+            # Only process folders at this level.
+            if [ ! -d "$collectionFolder" ]; then
+               echo "WARN: Found non-directory file in TRMC-ID folder. Ignored. ($collectionFolder)"
+
+               continue
+            fi
+
+            echo "INFO: [${DATA_SET}/${oneRegion}/${oneTRMC}/${collectionFolder}] Validating Raw Folder"
+            log_timestamp
+
+            ${TOOL_HOME}/Validate${DATA_SET} "${collectionFolder}" "${TOOL_TMP}"
+     
+            # Only continue processing this collection if successful.  Otherwise try to process the next one.
+            if [ $? != 0 ]; then
+              ExitMessage="Validation Failed. Moving $oneRegion/${oneTRMC}/$collectionFolder to Failure folder" 
+              echo "ERROR: $ExitMessage"
+
+              pushd ${TOOL_HOME} > /dev/null
+              mkdir -p ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${oneTRMC}
+              # Note: Not just moving folder because there might be one already existing from prior failures.
+              ${TOOL_HOME}/doCopy -fr ${RAW_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder} ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${oneTRMC}
+              rm -fr ${RAW_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder}
+              popd > /dev/null
+
+              ((ValidationFailureCount++))
+              ExitCode=$EXIT_ERROR
+  
+              continue;
+            fi
+
+            # Compute Checksum of collection.
+            checkSumString="${oneRegion}/${oneTRMC}/${collectionFolder} `ls ${collectionFolder}/*.sha1`"
+            collectionCheckSum=`echo -n "${checkSumString}" | sha1sum | cut -d " " -f 1`
+
+            # First see if we have seen this one yet.
+            LogEntry=`cut -d "," -f 2 ${PROCESSING_LOG} 2>/dev/null | grep ${collectionCheckSum}`
+            if [ ! -z "${LogEntry}" ]; then
+                echo "ERROR: Collection checksum found: ${collectionCheckSum}"
+                ExitMessage="Found collection already processed: ${oneRegion}/${oneTRMC}/${collectionFolder}"
+                echo "ERROR: $ExitMessage"
+
+                mkdir -p ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${oneTRMC}
+	        if [ -d "${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${oneTRMC}/${collectionFolder}" ]; then
+                    # Seems we have seen this a few times.  Keep the older one.
+                    rm -rf ${RAW_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder}
+                else
+                    # Copy/Delete what we found to the failure area.
+                    # Note: Not just moving folder because there might be one already existing from prior failures.
+                    ${TOOL_HOME}/doCopy -fr ${RAW_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder} ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${oneTRMC}
+                    rm -rf ${RAW_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder}
+                fi
+
+                ((DuplicateFailureCount++))
+                ExitCode=$EXIT_ERROR
+
+                continue;  # Don't do anymore with this one.
+            fi
+
+            # Record that we saw this one.
+            echo "`date "+%Y %m %d %H %M %S"`,${collectionCheckSum},${oneRegion}/${oneTRMC}/${collectionFolder}" >> ${PROCESSING_LOG}
+
+            ###
+            ### Prepare Transform files.
+            ###
+            echo "INFO: [${DATA_SET}/${oneRegion}/${oneTRMC}/${collectionFolder}] Preparing Transform Folder"
+            log_timestamp
+
+            mkdir -p ${TRANSFORM_FOLDER}/${oneRegion}/${oneTRMC}
+            ${TOOL_HOME}/doCopy -fr ${RAW_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder} ${TRANSFORM_FOLDER}/${oneRegion}/${oneTRMC}
+   
+            ## TODO
+            ## TODO: Need error handling for all these operations. :-(
+            ## TODO
+
+            pushd "${TRANSFORM_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder}" > /dev/null
+
+            if [ -f messages.zip ]; then 
+                mkdir -p instant_messages
+                pushd instant_messages >/dev/null
+
+                unzip -o -q ../messages.zip
+
+                # Break a part the message.xml into pieces.
+                ${TOOL_HOME}/XMLTagExtractor Version messages.xml -q -f
+                ${TOOL_HOME}/XMLTagExtractor Headers messages.xml -q -f
+                collDate=`echo "${collectionFolder}" | cut -d 'T' -f 1`
+                fnameDate=`date -d "$collDate" +%y%m%d`
+                ChatFilePrefix="${REU_FNAME_PREFIX}${fnameDate}"
+                ${TOOL_HOME}/XMLTagExtractor Chat messages.xml -o "$ChatFilePrefix" -m -q -f
+                ${TOOL_HOME}/XMLTagExtractor Users messages.xml -q -f
+                rm messages.xml
+
+                # Transform the Users file to contain FullName
+                mv ${MV_CP_CMD_OPT} Users.xml "${XSLT_TMP_FILE}"
+
+                ${TOOL_HOME}/XSLTRun -xsl:${TOOL_CONFIG}/TransformUsers.xslt -s:${XSLT_TMP_FILE} -o:Users.xml
+                if [ $? -ne 0 ]; then
+                    ${TOOL_HOME}/doCopy "${XSLT_TMP_FILE}" Users.xml
+                    ExitMessage="XSLT Processing failed for Users.xml file."
+                    ExitCode=$EXIT_ERROR
+                    echo "ERROR: $ExitMessage"
+                fi
+                rm -f "${XSLT_TMP_FILE}"
+ 
+                popd >/dev/null
+
+                # Need the UserInfo stuff for metadata for Chats and Attachments.
+                ${TOOL_HOME}/XMLTagExtractor UserInfo instant_messages/Users.xml -m -i Identifier -q -f
+
+                rm messages.zip*
+            fi
+
+            if [ -f attachments.zip ]; then
+                mkdir -p attachments
+                pushd attachments >/dev/null
+
+                unzip -o -q ../attachments.zip
+                if [ 0 -ne $? ]; then
+                    ExitMessage="Failed to unzip attachments file. Skipping collection folder: ${TRANSFORM_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder}"
+                    echo "ERROR: $ExitMessage"
+
+                    popd >/dev/null # attachment Folder
+                    popd >/dev/null # Collection Folder
+                    continue;
+                fi
+
+
+                #
+                #  Now Prepare the core metadata information from the Chats.
+                #
+                echo "INFO: Preparing attachment core metadata from Chat information"
+
+                # Grab all chats that have FileAttachment information and temporarily place them in with
+                #  the attachments. 
+                find ../instant_messages -name "${REU_FNAME_PREFIX}*.xml" -exec grep -q FileAttachment {} \; -exec ${TOOL_HOME}/doCopy {} . \; 
+
+                for oneChat in `ls ${REU_FNAME_PREFIX}*.xml 2>/dev/null`; do
+                    [ ! -z "$DEBUG" ] && echo "DEBUG: Processing attachment metadata for Chat: $oneChat"
+                    # Extract all messages
+                    ${TOOL_HOME}/XMLTagExtractor Message $oneChat -m -i MessageID -q -f
+
+                    # Now with all the Messages with attachments, associate them with the attachment.
+                    for oneMessage in `ls Message*.xml 2>/dev/null`; do
+                      grep -q "<FileAttachment>" $oneMessage 
+                      if [ 0 -eq $? ]; then
+                        [ ! -z "$DEBUG" ] && echo "DEBUG: Preparing attachment metadata for message: $oneMessage"
+
+                        # Save this for the loop
+                        oneMessageID=`grep "<MessageID>" ${oneMessage} | cut -d ">" -f 2 | cut -d "<" -f 1`;
+
+                        for oneReference in `grep "<Reference>" $oneMessage | cut -d ">" -f 2 | cut -d "<" -f 1`; do
+                          [ ! -z "$DEBUG" ] && echo "DEBUG: Found Reference: $oneReference"
+
+                          # If a metdata file exists and the message ID is already in it,
+                          #  skip this reference.
+                          if [ -f "${oneReference}${METADATA_FILE_POSTFIX}" ]; then
+                            grep -q "<MessageID>$oneMessageID" ${oneMessage}
+                            if [ 0 -eq $? ]; then
+                              [ ! -z "$DEBUG" ] && echo "DEBUG: Message ID ($oneMessageID) already in Metadata file."
+                              #Transform Message to extract attachment Metadata and skip.Need this if the same attachment exists in another chat file.
+                              attachmentSize=`stat -c %s $oneReference`                          
+                              ${TOOL_HOME}/XSLTRun -xsl:${TOOL_CONFIG}/TransformMessageAttMetadata.xslt -s:${oneMessage} fileSize=$attachmentSize \
+                                   >> $oneChat.${ATT_METADATA_FILE_EXT}
+                              continue;  # Skip this Reference
+                            fi
+                          fi
+                          
+                          # Transform Message to only contain what we need.
+                          ${TOOL_HOME}/XSLTRun -xsl:${TOOL_CONFIG}/TransformMessageTemplate.xslt -s:${oneMessage} hcpReference=$oneChat referenceFilter=$oneReference \
+                                   >> ${oneReference}${METADATA_FILE_POSTFIX}
+
+                          #Transform Message to extract attachment Metadata
+                          attachmentSize=`stat -c %s $oneReference`                          
+                          ${TOOL_HOME}/XSLTRun -xsl:${TOOL_CONFIG}/TransformMessageAttMetadata.xslt -s:${oneMessage} fileSize=$attachmentSize \
+                                   >> $oneChat.${ATT_METADATA_FILE_EXT}
+                     
+                        done # for each Reference
+                        
+                      fi # Has a FileAttachment
+                       
+                      rm -f $oneMessage # Remove irrelevant messages
+                    done # for oneMessage
+                    
+                    if [ -f "$oneChat.${ATT_METADATA_FILE_EXT}" ]; then
+                       #Get the Output filename to associate it with the actual object
+                       outputAttMetadataFile=`echo $oneChat | cut -d "." -f 1`.${ATT_METADATA_FILE_EXT}
+
+                       #Add root element to make sure xml is well formed
+                       echo '<Attachments>' | cat - $oneChat.${ATT_METADATA_FILE_EXT} > $outputAttMetadataFile
+                       echo "</Attachments>" >> $outputAttMetadataFile
+                        
+                       #Move attachment metadata (.att files )to instant_messages folder
+                       mv $outputAttMetadataFile ${TRANSFORM_FOLDER}/${oneRegion}/${oneTRMC}/${collectionFolder}/instant_messages/
+                    fi
+                    rm -f $oneChat $oneChat.${ATT_METADATA_FILE_EXT}
+                done # For oneChat
+
+                popd >/dev/null # attachments folder
+
+                rm attachments.zip*
+            fi
+   
+            popd > /dev/null # collectionFolder
+        done  # End for collectionFolder
+
+        popd > /dev/null
+    done # for each TRMCID
+
+    popd > /dev/null
+done # End for region
+
+popd > /dev/null
+
+###
+### Set ItemsProcessed with the number of ${REU_FNAME_PREFIX}* found.
+###   Note: not doing this in the loop above, because it might not execute because we are 
+###      reprocessing content already in WorkArea.
+###    
+numChats=`find "${TRANSFORM_FOLDER}" -name "${REU_FNAME_PREFIX}*.xml" | wc -l`
+((ItemsProcessed[0]+=${numChats}))
+
+###
+### Ingest Raw into HCP
+###
+echo "INFO: [${DATA_SET}] Ingesting Raw Content into HCP"
+log_timestamp
+${TOOL_HOME}/runComet ${DATA_SET} Raw
+
+###
+### Ingest Tranformed into HCP
+###
+echo "INFO: [${DATA_SET}] Ingesting Transformed Content into HCP"
+log_timestamp
+${TOOL_HOME}/runComet ${DATA_SET} Transform
+
+###
+### Look for unexpected files left behind.  Cleanup where necessary.
+###
+echo "INFO: [${DATA_SET}] Looking for residual files and cleaning up"
+log_timestamp
+
+#
+# First look at Raw files
+#
+orphanFileCount=`find ${RAW_FOLDER} -type f 2>/dev/null | wc -l`
+if [ 0 -ne $orphanFileCount ]; then
+  ExitMessage="[${DATA_SET}] Unexpected ${RAW_NAME} residual files found. Files being moved to Failure folder."
+  echo "ERROR: $ExitMessage"
+
+  mkdir -p ${FAILURE_FOLDER}/${RAW_NAME}
+  # Note: Not just moving folder because there might be one already existing from prior failures.
+  ${TOOL_HOME}/doCopy ${MV_CP_CMD_OPT} -fr ${RAW_FOLDER} ${FAILURE_FOLDER}
+  rm -rf ${RAW_FOLDER}
+  
+  ((ResidualFileFailureCount+=${orphanFileCount}))
+  ExitCode=$EXIT_ERROR
+else
+  # Remove any possible empty folder
+  rm -rf ${RAW_FOLDER}
+fi
+
+#
+# Now look at Transform files.  It is expected to have UserInfo* and *_Metadata and *.att files residual.
+#
+orphanFileCount=`find ${TRANSFORM_FOLDER} -type f ! \( -name "UserInfo*" -o -name "*${METADATA_FILE_POSTFIX}" -o -name "*.${ATT_METADATA_FILE_EXT}" \) 2>/dev/null | wc -l`
+if [ 0 -ne $orphanFileCount ]; then
+  ExitMessage="[${DATA_SET}] Unexpected ${TRANSFORM_NAME} residual files found. Files being moved to Failure folder."
+  ExitCode=$EXIT_ERROR
+  echo "ERROR: $ExitMessage"
+
+  # First clean up all collections that only have UserInfo* and/or *_Metadata files
+  for oneFolder in `ls -d ${TRANSFORM_FOLDER}/*/*/* 2>/dev/null`; do
+      orphanFileCount=`find ${oneFolder} -type f ! \( -name "UserInfo*" -o -name "*${METADATA_FILE_POSTFIX}" -o -name "*.${ATT_METADATA_FILE_EXT}" \) 2>/dev/null | wc -l`
+      if [ 0 -ne $orphanFileCount ]; then
+          [ ! -z "$DEBUG" ] && echo "DEBUG: Found residual files in folder: ${oneFolder}"
+          continue;
+      fi
+
+      [ ! -z "$DEBUG" ] && echo "DEBUG: Cleaning up expected residual files in folder: ${oneFolder}"
+
+      # Remove all UserInfo and _Metadata files
+      rm -rf ${oneFolder}/*
+      # Remove this folder and all empty parent folders
+      rmdir --ignore-fail-on-non-empty -p $oneFolder
+  done
+  
+  # Take away up how many Chat Items left behind.
+  IngestFailureCount=`find ${TRANSFORM_FOLDER} -name "${REU_FNAME_PREFIX}*.xml" | wc -l`
+
+  # Update orphanFileCount will all files.
+  orphanFileCount=`find ${TRANSFORM_FOLDER} -type f 2> /dev/null | wc -l`
+
+  mkdir -p ${FAILURE_FOLDER}/${TRANSFORM_NAME}
+  # Note: Not just moving folder because there might be one already existing from prior failures.
+  ${TOOL_HOME}/doCopy -fr ${TRANSFORM_FOLDER} ${FAILURE_FOLDER}
+  rm -rf ${TRANSFORM_FOLDER} 
+
+  ((ResidualFileFailureCount+=${orphanFileCount}))
+else
+  # Remove the temporary UserInfo files as they are not ingested
+  rm -rf ${TRANSFORM_FOLDER}
+fi
+
+#
+# Clean up the history file
+#
+if [ -f "${PROCESSED_LOG}" ]; then
+    # Need a temporary file to write results into
+    TMP_LOG_FILE=${PROCESSED_LOG}.$$
+
+    awk -F "," -v KEEP_DAYS=$MAX_HISTORY_IN_DAYS '
+    { 
+      if ( mktime($1) > systime() - (KEEP_DAYS * 24 * 60 * 60) )
+          print $0;
+    }' ${PROCESSED_LOG} > $TMP_LOG_FILE
+
+    mv -f $TMP_LOG_FILE $PROCESSED_LOG
+fi
+
+# All done, report the status to where configured.
+report_status $ExitCode "$ExitMessage"
+
+echo "INFO: [${DATA_SET}] Finished Processing ($ExitCode - $ExitMessage)"
+log_timestamp
+
+exit $ExitCode

@@ -1,0 +1,290 @@
+#!/bin/bash
+
+# General Algorithm:
+#   Take the originals from the MQ staging area and move to "RawData" work area.
+#   Validate the RawData content as valid for the for data type.
+#     - E.G. Validate checksums, etc.
+#     - Move failed content to Quarantine area.
+#   For any valid/complete collections, make sure we didn't already record it
+#     in the history.log file.
+#   Construct TransformData from RawData based on needs for specific data type:
+#     - For Example,
+#       + Expanding zip files.
+#       + Removing unnecessary checksum files.
+#       + Create extracted XML files for usage during processing.
+#   Ingest RawData to HCP.
+#   Ingest TransformData to HCP.
+#   Cleanup TransformData of any "temporary files", if any.
+#   Make sure there are no residual files, as that indicates a unexpected failure.
+#   Formulate a report and publish (e-mail, Search Console, etc.. as configured).
+
+#export DEBUG=true
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Verint2
+export SUB_SET=Skype
+export OBJECT_TYPES=("Skype Voice Recordings")
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+# Only allow one instance for a given config at a time.
+get_lock
+
+# Initialize Counters
+init_report_counters
+
+ExitCode=$EXIT_SUCCESS  # Assume the best
+ExitMessage="(none)"
+
+# Make sure we have files
+STAGING_FOLDER="${STAGING_AREA}"
+if [ ! -d "${STAGING_FOLDER}" ]; then
+    ExitCode=$EXIT_ERROR
+
+    report_status $ExitCode "ERROR: Staging Folder (${STAGING_FOLDER}) does not exist."
+
+    exit $ExitCode;
+fi
+STAGING_FOLDER=`readlink -e "${STAGING_FOLDER}"`
+
+echo "INFO: [${SUB_SET}] Starting Processing"
+log_timestamp
+
+#
+# Setup folders/files and variables to them.
+#
+mkdir -p ${PROCESSING_AREA} ${QUARANTINE_AREA}
+
+RAW_FOLDER=`readlink -e ${PROCESSING_AREA}`/${RAW_NAME}
+TRANSFORM_FOLDER=`readlink -e ${PROCESSING_AREA}`/${TRANSFORM_NAME}
+FAILURE_FOLDER=`readlink -e ${QUARANTINE_AREA}`
+
+PROCESSING_LOG=`readlink -e ${PROCESSING_AREA}`/history.log
+
+mkdir -p ${RAW_FOLDER} ${TRANSFORM_FOLDER}
+
+rm -rf ${TOOL_TMP}  # Start fresh
+mkdir -p ${TOOL_TMP}
+if [ `ls "${STAGING_FOLDER}" | wc -l` -lt 1 ]; then
+   ExitCode=$EXIT_WARNING
+   ExitMessage="No files found in staging area: ${STAGING_FOLDER}"
+
+   echo "WARN: $ExitMessage"
+else
+
+  ##
+  # Collect full collection(s) from staging area and place in RAW_FOLDER area
+  ##
+  TMP_COLLECT_FILE=${TOOL_TMP}/`basename $0`.$$
+
+  [ ! -z "$DEBUG" ] && echo "DEBUG: Performing data set collection from: ${STAGING_FOLDER}"
+  log_timestamp "Starting data set collection"
+
+  ${TOOL_HOME}/Collect${SUB_SET} "${STAGING_FOLDER}" "${RAW_FOLDER}" "${FAILURE_FOLDER}" "${TOOL_TMP}" | tee $TMP_COLLECT_FILE
+
+  collectWarnings=`grep "WARN:" $TMP_COLLECT_FILE | wc -l`
+  ((CollectFileWarningCount+=${collectWarnings}))
+  collectErrors=`grep "ERROR:" $TMP_COLLECT_FILE | wc -l`
+  ((CollectFileFailureCount+=${collectErrors}))
+
+  rm -f ${TMP_COLLECT_FILE}
+
+  if [ 0 != $CollectFileWarningCount ]; then
+      ExitCode=$EXIT_WARNING
+      ExitMessage="Detected Warning(s) during file collection from: ${STAGING_FOLDER}"
+  fi
+  if [ 0 != $CollectFileFailureCount ]; then
+      ExitCode=$EXIT_ERROR
+      ExitMessage="Detected Error(s) during file collection from: ${STAGING_FOLDER}"
+  fi
+fi
+
+##
+# For all the complete collections we grabbed, it is time to process them.
+##
+log_timestamp "Processing raw folder"
+pushd "${RAW_FOLDER}" > /dev/null
+
+for oneRegion in `ls -d * 2> /dev/null`; do
+    if [ ! -d "$oneRegion" ]; then
+       echo "WARN: Found non-directory file in Processing area. Ignored. ($oneRegion)"
+
+       continue
+    fi
+
+    # Head down into region and process next level.
+    pushd "${oneRegion}" > /dev/null
+ 
+    tmpFile=${TOOL_TMP}/${COMMAND_NAME}.$$
+    ls -d * 2> /dev/null > $tmpFile
+
+    while read oneCollection; do
+        if [ ! -d "$oneCollection" ]; then
+           echo "WARN: Found non-directory file in region folder. Ignored. ($oneCollection)"
+
+           continue
+        fi
+
+        ###
+        ### Prepare Raw Files..
+        ###
+        echo "INFO: [${SUB_SET}/${oneRegion}/${oneCollection}] Validating Collection"
+
+        ${TOOL_HOME}/Validate${SUB_SET} "${oneCollection}" "${TOOL_TMP}"
+     
+        # Only continue processing this collection if successful.  Otherwise try to process the next one.
+        if [ $? -ne 0 ]; then
+            ExitMessage="Validation Failed. Moving $oneRegion/${oneCollection} to Failure folder" 
+            echo "ERROR: $ExitMessage"
+
+            mkdir -p "${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}"
+            # Note: Not just moving folder because there might be one already existing from prior failures.
+            ${TOOL_HOME}/doCopy -pfr "${RAW_FOLDER}/${oneRegion}/${oneCollection}" "${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}"
+            rm -fr "${RAW_FOLDER}/${oneRegion}/${oneCollection}"
+            ((ValidationFailureCount++))
+            ExitCode=$EXIT_ERROR
+  
+            continue;
+        fi
+
+        # Compute Checksum of collection. Based off the files in the collection.
+        checkSumString="${oneRegion}/${oneCollection}"
+        collectionCheckSum=`echo -n "${checkSumString}" | sha1sum | cut -d " " -f 1`
+
+        # First see if we have seen this one yet.
+        LogEntry=`cut -d "," -f 2 ${PROCESSING_LOG} 2>/dev/null | grep ${collectionCheckSum}`
+        if [ ! -z "${LogEntry}" ]; then
+            echo "ERROR: Collection checksum found: ${collectionCheckSum}"
+            ExitMessage="Found collection already processed: ${oneRegion}/${oneCollection}"
+            echo "ERROR: $ExitMessage"
+
+            mkdir -p "${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}"
+	    if [ -d "${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${oneCollection}" ]; then
+                # Seems we have seen this a few times.  Keep the older one.
+                rm -rf "${RAW_FOLDER}/${oneRegion}/${oneCollection}"
+            else
+                # Move what we found to the failure area.
+                mv ${MV_CP_CMD_OPT} -f "${RAW_FOLDER}/${oneRegion}/${oneCollection}" "${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}"
+            fi
+
+            ((DuplicateFailureCount++))
+            ExitCode=$EXIT_ERROR
+
+            continue;  # Don't do anymore with this one.
+        fi
+
+        # Record that we saw this one.
+        echo "`date "+%Y %m %d %H %M %S"`,${collectionCheckSum},${oneRegion}/${oneCollection}" >> ${PROCESSING_LOG}
+
+        ###
+        ### Prepare Transform files.
+        ###
+        echo "INFO: [${SUB_SET}/${oneRegion}/${oneCollection}] Preparing Transform Folder"
+        mkdir -p "${TRANSFORM_FOLDER}/${oneRegion}/${oneCollection}"
+        ${TOOL_HOME}/doCopy -r "${RAW_FOLDER}/${oneRegion}/${oneCollection}" "${TRANSFORM_FOLDER}/${oneRegion}"
+
+    done < $tmpFile # while read collection
+
+    popd > /dev/null # Pop region folder
+done # End for region
+
+popd > /dev/null
+
+# Assume we will processes all of the WAV files.
+ItemsProcessed[0]=`find ${TRANSFORM_FOLDER} -type f -name "*.wav" 2> /dev/null | wc -l`
+
+###
+### Ingest Raw into HCP
+###
+echo "INFO: [${SUB_SET}] Ingesting Raw Content into HCP"
+log_timestamp
+
+${TOOL_HOME}/runComet ${SUB_SET} Raw
+
+###
+### Ingest Tranformed into HCP
+###
+echo "INFO: [${SUB_SET}] Ingesting Transformed Content into HCP"
+log_timestamp
+
+${TOOL_HOME}/runComet ${SUB_SET} Transform
+
+###
+### Look for unexpected files left behind.  Cleanup where necessary.
+###
+echo "INFO: [${SUB_SET}] Looking for residual files and cleaning up"
+log_timestamp
+
+# First, get rid of empty folders from INPUT_FOLDER, RAW_FOLDER and TRANFORM_FOLDER.
+find ${INPUT_FOLDER} -mindepth 1 -type d -empty -delete
+find ${RAW_FOLDER} -type d -empty -delete
+
+echo "INFO: Removing .vad files from Transform Folder"
+deleteFileCount=`find ${TRANSFORM_FOLDER} -type f -iname "*.vad" 2> /dev/null | wc -l`
+find ${TRANSFORM_FOLDER} -type f \( -iname "*.swp" -o -iname "*.vad" \) -exec rm -f {} \;
+echo "INFO: Deleted $deleteFileCount .vad files from Transform Folder"
+
+find ${TRANSFORM_FOLDER} -type d -empty -delete
+
+#
+# Look at Raw files area.  Should be empty.
+#
+orphanFileCount=`find ${RAW_FOLDER} -type f 2> /dev/null | wc -l`
+if [ 0 -ne $orphanFileCount ]; then
+  ExitMessage="[${SUB_SET}] Unexpected ${RAW_NAME} residual files found. Files being moved to Failure folder."
+  echo "ERROR: $ExitMessage"
+
+  mkdir -p ${FAILURE_FOLDER}/${RAW_NAME}
+  # Note: Not just moving folder because there might be one already existing from prior failures.
+  ${TOOL_HOME}/doCopy -pfr ${RAW_FOLDER} ${FAILURE_FOLDER}
+  rm -rf ${RAW_FOLDER} 
+
+  ((ResidualFileFailureCount+=${orphanFileCount}))
+  ExitCode=$EXIT_ERROR
+fi
+
+#
+#
+# Look at Transform files area.  Should be empty.
+#
+orphanFileCount=`find ${TRANSFORM_FOLDER} -type f 2> /dev/null | wc -l`
+if [ 0 -ne $orphanFileCount ]; then
+  ExitMessage="[${SUB_SET}] Unexpected ${TRANSFORM_NAME} residual files found. Files being moved to Failure folder."
+  echo "ERROR: $ExitMessage"
+
+  # The orphaned files, subtract the WAV ones from the expected ingest count.
+  IngestFailureCount=`find ${TRANSFORM_FOLDER} -type f -name "*.wav" 2> /dev/null | wc -l`
+
+  mkdir -p ${FAILURE_FOLDER}/${TRANSFORM_NAME}
+  # Note: Not just moving folder because there might be one already existing from prior failures.
+  ${TOOL_HOME}/doCopy -pfr ${TRANSFORM_FOLDER} ${FAILURE_FOLDER}
+  rm -rf ${TRANSFORM_FOLDER} 
+
+  ((ResidualFileFailureCount+=${orphanFileCount}))
+  ExitCode=$EXIT_ERROR
+fi
+
+#
+# Clean up the history file
+#
+if [ -f "${PROCESSED_LOG}" ]; then
+    # Need a temporary file to write results into
+    TMP_LOG_FILE=${PROCESSED_LOG}.$$
+
+    awk -F "," -v KEEP_DAYS=$MAX_HISTORY_IN_DAYS '
+    { 
+      if ( mktime($1) > systime() - (KEEP_DAYS * 24 * 60 * 60) )
+          print $0;
+    }' ${PROCESSED_LOG} > $TMP_LOG_FILE
+
+    mv -f $TMP_LOG_FILE $PROCESSED_LOG
+fi
+
+# All done, report the status to where configured.
+echo "ExitCode=$ExitCode"
+report_status $ExitCode "$ExitMessage"
+
+echo "INFO: [${SUB_SET}] Finished Processing ($ExitCode - \"$ExitMessage\")"
+log_timestamp
+
+exit $ExitCode

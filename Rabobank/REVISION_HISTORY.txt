@@ -1,0 +1,208 @@
+COMET-Rabobank version 2.1.23
+
+Revision History:
+2018/05/14 - 2.1.23 - Added new ingest module for Etrali data set as part of Verint 2.0 migration.
+2018/02/14 - 2.1.22 - Merged Skype ingest module as part of Verint 2.0 migration.
+2018/02/12 - 2.1.21 - Added new ingest module for Mobile data set as part of Verint 2.0 migration.
+2017/12/11 - 2.1.20 - Added new config for Skype Job name and export name in the envsetup_Core for skype.
+2017/11/09 - 2.1.19 - Added cleanup code to delete .vad files from transform folder.
+2017/11/03 - 2.1.18 - Seperated Skype as a seperate module from Verint.
+2017/10/20 - 2.1.17 - Added New mapping for Skype Voice exports for Verint.
+                      Added new File Prefix for Skype.
+2016/06/27 - 2.1.16 - Add force "yes" answers to gpg command to overwrite any existing file.
+2016/06/22 - 2.1.15 - Manage output from gpg execution so it goes to log file or stdout.
+                    - Another update Bloomberg AccountMapping.lst file
+2016/06/20 - 2.1.14 - Updated Bloomberg AccountMapping.lst file. Twice.
+                    - Second attempt at support for encrypted Bloomberg Files.
+2016/05/20 - 2.1.13 - Added support for encrypted Bloomberg Files.
+2016/05/19 - 2.1.12e- Added special Verint Code to handle rejecting doing
+                      Collection if there are too many collection folders.
+                    - Another update Bloomberg AccountMapping.lst file
+2016/04/04 - 2.1.12d- Another update Bloomberg AccountMapping.lst file
+2016/03/21 - 2.1.12c- Another update Bloomberg AccountMapping.lst file
+2016/03/16 - 2.1.12b- Update Bloomberg AccountMapping.list file
+2016/03/15 - 2.1.12 - Change Reuters Transform Users transform to reduce the fields kept in the
+                      UserInfo structure to avoid hitting the 10,000 tag limit of HCP.
+                    - Fix WARN about deleting Bloomberg attachment files even though it did succeed.
+2016/01/29 - 2.1.11 - Added logging time stamp when each conversation is started.
+                    - Remove quotes around rm paramters that was making the rm not clean up the
+                      scratch area.
+2016/01/28 - 2.1.10 - Reworked Bloomberg processing as it caused the performance really bad.
+                      Came down to moving all the attachment processing to only done once per
+                      conversation. Made other improvements that likely will improve the overall
+                      performance as well.  Also stopped used the for-each in the transformations.
+2016/01/20 - 2.1.9  - Added code to Reuters and Bloomberg scripts to add attachment
+                      metadata to the message/chat objects.  This will provide the
+                      Search Console to have a "forward" reference to the attachments.
+                    - In ValidateBloomberg, handle encoded XML special characters
+                      in file names for attachments. 
+2015/12/01 - 2.1.8  - Verint wav files now have a file prefix consisting of the recording
+                      type and the region it is stored in.
+2015/11/30 - 2.1.7  - Change ListUserAccess script to use a different method for parsing off the
+                      last character of a string.
+                    - Change VerintTransform tracing of XSLT transformed contentto not use System.out
+                    - Change Algomi/Bloomberg/Reuters transform generators to change
+                      the HCP object name to contain the regionCode.
+2015/11/24 - 2.1.6  - Fix incorrect custom-field.xml definition for Algomi Client ID field. 
+                    - Added special tool, ListUserAccess, to list out accounts/groups roles and
+                      permissions.
+2015/11/06 - 2.1.5  - Removed an errant exit code in ProcessAlgomi.
+2015/11/05 - 2.1.4  - Turn off transform output to console except for trace mode.
+                    - Fixed failure processing in ProcessAlgomi when Validate* and Collect* fails.
+                    - Changed configuration to use 500 instead of 400 in tenant/namespaces for Algomi.
+                    - Fixed CollectAlgomi to create destination folder even if manifest is empty.
+                    - Added code so that SEARCH_CONSOLE_PASSWORD is stored in base64 encoded, and
+                      decode when issuing curl command
+2015/11/05 - 2.1.3  - Updated Administration Guide Documents and pictures.pptx
+2015/10/28 - 2.1.1  - Finished core implementation for Algomi including feedback from Customer/Search Tech
+                    - Added VerintTraderName to custom-field.xml
+2015/10/22 - 2.1.0  - Added new Algomi Generators for Raw and Transform and a new XSLT for transforming
+                      Algomi Custom MetaData.
+                      Updated RegionMapper_Transform.properties and generator_Transform.properties.
+2015/09/23 - 1.2.2a - Update Bloomberg Account numbers to what is deployed on site.
+2015/09/23 - 1.2.2  - Fix issue where Reuters TRMCID folder was being removed from collection area.
+                    - Remove unnecessary rm command qualifiers found in ProcessReuters.
+2015/09/18 - 1.2.1  - Update AccountMapping.xml to what was at Rabobank.  They added some for NoMap
+                      accounts.
+                    - Added -s option to curl commmand that writes the status to the Search Console.
+                      This will keep curl status from going to output.
+                    - Fix issue where Bloomberg disclaimers.xml file was not being distributed to
+                      folders.
+                    - Added count attribute to Bloomberg Participants tag.
+                    - Updated solution spec to match actual implementation.
+2015/09/11 - 1.2.0  - Added version 0.5 of the Administrative Guide.
+                    - Fix issue where Bloomberg Messages were not getting the correct metadata.
+                    - Add FullName to Bloomberg InstantMessager Invitee and Inviter fields.
+                    - Enhanced implementation to report separately for diffent object types (and give
+                      a more human readable name.
+                    - Bloomberg Messages transform was incorrectly renaming the UserInfo field to User. 
+                    - Added in Participant information to Bloomberg custom metadata.
+                    - Changed processing so that Unknown goes to namespace, and no-mapping still goes
+                      to quarantine.
+                    - Use Saxon 9.x parser for doing XSL Transforms.  Update all xslt files to 2.0.
+                    - Update logging levels to be more production like.
+2015/08/18 - 1.1.5  - Linux cp command stderr is not redirecting to log file. Implement
+                      a bash function to output stderr and stdout to stdout.
+2015/08/07 - 1.1.4  - Fix issue with last file list not being used.  Config file had wrong value.
+                    - Added a little warning message in ProcessBloomberg when an attachment metadata
+                      file is not found.
+                    - Adding back attachment Sender User information for Bloomberg Messages.
+                    - Fixing running out of disks space and causing Attachments to not get the metadata.
+                    - Add back in Message Event User field into Reuters Messages.
+                    - Fix custom-index.xml field to be String for *IBDateTime field as it was causing
+                      HDDS to not index.
+2015/07/28 - 1.1.3  - Bloomberg: Add _Metadata file cleanup before sending to Quarantine so that
+                      only _Metadata exists for things that failed to be ingested.
+                    - Rework the attachment metadata based on discussions.
+2015/07/16 - 1.1.2  - Change output date/time folder format to remove the ":" character.
+                    - Change RawData output folder to closer match the folder needed to support
+                      the ability to extract RawData from HCP and reprocess. Still requires minor
+                      collapsing of year folder and date/time folder into single folder.
+2015/07/16 - 1.1.1  - Fix Bloomberg ItemsProcessed count was using old code, so numbers were wrong.
+                    - Add metadata.enclosingTag to Reuters Config.
+                    - Change Verint to use metadata.enclosingTag to be consistent with others.
+                    - Fix that Bloomberg Message IDs are in hexidecimal not just numbers, so there
+                      wasn't any metadata being attached.
+                    - First pass fix for Reuters Attachments having multiple Events
+                      the fix is to only append Send events to the metadata.
+                    - Added generation of "FullName" to UserInfo structure for Reuters.
+                      Rename all Reuters and Bloomberg files to a different form. <type>_<date><num>.xml
+2015/06/30 - 1.1.0  - Fix issue in Bloomberg where it is possible to have a FirmNumber that contains
+                      the Rabobank firm number.  Example: 36163 contains 3616.
+                    - Clean up some ProcessBloomberg TODO items around processing statistics.
+                    - Break up config/envsetup into envsetup and envsetup_Core file.  This will help
+                      with upgrades of software where files can just be overlayed on top.
+                    - Change all reporting to report on Processed Items instead of trying to guess
+                      successes based on failures and Processed Items.
+                    - Added CollectionInfo to Reuters custom metadata.
+                    - Break up Bloomberg message.xml file into one message per file.
+                    - Add Metdata to all attachments (Reuters, Bloomberg IB, Bloomberg MSG)
+                    - Added new fields to custom-field.xml for the attachment metadata.
+                    - Added metadata to raw files to enable easier search.
+2015/06/23 - 1.0.13 - Enhance ExitMessage reporting. To report last error/warning encountered.
+                      Fix premature closing of file stream in XSLTRun java.
+                      Added ValidateVerint logic.
+                      Add indicator of CD_Mappings.xml file as a complete set for Verint.
+                      Add RawData folder to path in Quarantine when a collection fails validation.
+                      Updated custom-fields.xml with the latest from SearchTech.  Added version
+                      number to file.
+                      Changed log message about not updating custom metadata to a warning so
+                      it is easy to figure out why content was not ingested.
+                      Removed unused fields from custom-fields.xml
+                      Added in limits for size of individual message.xml files to make multiples.
+                      Added first pass at Bloomberg Metadata.
+2015/06/09 - 1.0.12 - Tweaking *Bloomberg scripts based on various findings.
+                      Fix issue with multiple collections causing attachment validation to fail.
+                      Fix configuration so that tmp/comet_<DataSet>.stop and tmp/comet_<DataSet>.pause 
+                     points is picked up correctly.
+2015/06/02 - 1.0.11 - Fix validation error where Chat ID is used in another chat message.
+                      More tweaks to Process* scripts to allow for re-run capabilities.
+2015/06/01 - 1.0.10 - Process the Conversations in numerical order to help with 
+                      logging progress.
+                      Fix issue with attachment files having top level folder in
+                      it and thus causing no attachments to be distributed.
+                      Fix issue with finding conversations that have no account numbers.
+                      Fix issue with conversations with multiple attachments are not all
+                      being copied.
+                      Pass through all code to clean up resource leaks due to InputStreams
+                      and OutputStreams
+2015/05/27 - 1.0.9b - Bug fixes for Bloomberg.  Collect* needs to remove \r chars
+                      from daily_manifest_*.txt files.  Validate* has to handle
+                      there being a folder in the attachment file and fix issues
+                      with validating the file list against the references in the
+                      msg/ib files.
+                      Added time stamp logging.
+2015/05/26 - 1.0.9 - First phase Bloomberg processing re-write.
+                     Change Reuters orphan file processing to clean up other
+                     collections that only have the UserInfo* files so those are
+                     not moved to Quarantine.
+                     Enhance XMLTagExtractor to be extensible processors. Thus some
+                     CLI parameter changes impacting scripts.
+2015/04/30 - 1.0.8 - Fix Verint WARN for delete failure for RawData content.
+                     Prepare reporting code using generic routine
+                     Add TraderID to the Verint EtradealExport Transform
+                     Add configuration for top level metadata tag and configure for
+                     consistent "TransformData" tag name.
+                     Update Region mapping with latest list from Rabobank.
+                     Allow folder structure for region to contain more than fixed 2
+                     for region code.
+2015/04/21 - 1.0.7b - Fix Verint WARN for delete failure for RawData content.
+2015/04/16 - 1.0.7 - Change folder structure to make year a separate folder from
+                     the <Date-Time> folder. 
+                     Fixes for the reporting of Stale files error.
+                     Setup Transforms for Verint calls based on custom data
+                     mapping from Rabobank.
+                     Added sending an e-mail for status of job runs.
+2015/04/15 - 1.0.6 - Change date folder in Transform to include seconds resolution.
+                     Need this for Verint but applied to all. Verint can have
+                     multiple collections for same extraction managers within any
+                     given minute.
+                     Change Verint functionality to use XSLT transform specific to
+                     individual extractions.  Also create Raw and Transform.
+                     Finish cmdLogger functionality.
+                     Created template crontab entries.
+                     Put locking at Process* script level instead of runComet
+2015/03/25 - 1.0.5b - Small changes to configuration for data set specific
+                     envsetup files to use PROCESSING_AREA for SOURCE_ITEMS.
+2015/03/25 - 1.0.5 - Finish first round implementation for Bloomberg.
+                     Finish Verint changes to use new folder layout that includes
+                     region code.
+                     Fix Reuters validation check. Change messages folder to use
+                     instant_messages instead. 
+                     Change configuration to be limited to envsetup* files only.
+2015/03/25 - 1.0.4b - Change CollectReuters to use copy/rm instead of mv because
+                     of interesting permissions on the files (i.e. using weird
+                     perms and acls).
+                     Add additional debugging to assist in validation failures.
+                     Updating latest COMET and Rabobank.jars to fix folder
+                     deletion errors.
+2015/03/20 - 1.0.4 - First pass Verint processing end-to-end.  Likely will still
+                     be changes to address open questions.
+2015/03/12 - 1.0.3 - Change Reuters processing to allow for optional attachments,
+                     fix perissions on deployment environment, Change how 
+                     duplicates are detected for empty collections.
+2015/03/06 - 1.0.2 - Add ability to processes "empty" collections that consist of
+                     just summary.xml* and reconcile.xml*.
+2015/02/04 - 1.0.1 - Rework preparations for multiple data types. Also added hash
+                     checking when writing to HCP.
+2015/02/03 - 1.0.0 - Initial Revision. Contains software that will process objects

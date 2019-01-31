@@ -1,0 +1,45 @@
+######
+######  SITE SPECIFIC SETTINGS
+######
+
+# E-mail recipients for completion overview. Can be blank.
+STATUS_EMAIL_RECIPIENTS="Keith.Dumbleton@rabobank.com Hedde.Van.der.Hoeven@rabobank.com fm.eu.ecmsupport@rabobank.com neil.harrison@rabobank.com"
+
+# DNS host name of Search Console to send status to, if blank will not be sent
+#export SEARCH_CONSOLE_HOST=ecm.rabonet.com
+export SEARCH_CONSOLE_HOST=ecm-prd.rabonet.com
+export SEARCH_CONSOLE_USER=DIadminPRD
+export SEARCH_CONSOLE_ENC_PWD=dG9lZHd5
+
+export NEW_VERINT_DATA_SET=Verint2
+
+#
+# HCP Settings 
+#
+export HCP_DNS_NAME=hcpuk001.rabonet.local
+
+#Default for all data sets. (Can override for each data set)
+export HCP_USER=ingestuser
+export HCP_ENC_PWD=442e8498829b606ec45b312728b755c5
+
+# Top folders for files to process
+BASE_DATA_AREA=/appl/ingest
+STAGING_AREA=${BASE_DATA_AREA}/HCP_Production/${DATA_SET}
+PROCESSING_AREA=${BASE_DATA_AREA}/WorkArea/HCP_Production/${DATA_SET}
+QUARANTINE_AREA=${BASE_DATA_AREA}/Quarantine/HCP_Production/${DATA_SET}
+
+if [ "${DATA_SET}" == "${NEW_VERINT_DATA_SET}" ]; then
+ # override processing and quarantine with the sub module
+ PROCESSING_AREA=${BASE_DATA_AREA}/WorkArea/HCP_Production/${SUB_SET}
+ QUARANTINE_AREA=${BASE_DATA_AREA}/Quarantine/HCP_Production/${SUB_SET}
+fi
+
+##
+## Pull in General settings.
+##
+MY_DIR=`dirname $0`
+export TOOL_HOME=`readlink -e $MY_DIR`
+export TOOL_CONFIG_BASE=${TOOL_HOME}/config
+
+. ${TOOL_CONFIG_BASE}/envsetup_Core
+

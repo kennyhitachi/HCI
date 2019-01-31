@@ -1,0 +1,12 @@
+export HCP_TENANT_NAME=hcpalg400
+
+#
+# Name of one of the valid namespaces in the tenant to validate
+#  connectivity and feature capabilties of the HCP.
+export HCP_TEST_NAMESPACE_NAME=algnlrab400
+
+export ALGSYN_FNAME_PREFIX=ALS_
+export ALGHNY_FNAME_PREFIX=ALH_
+
+export ALG_SYN_OBJ=Synchronicity
+export ALG_HNY_OBJ=Honeycomb

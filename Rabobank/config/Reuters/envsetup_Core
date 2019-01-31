@@ -1,0 +1,8 @@
+export HCP_TENANT_NAME=hcpreu400
+
+#
+# Name of one of the valid namespaces in the tenant to validate
+#  connectivity and feature capabilties of the HCP.
+export HCP_TEST_NAMESPACE_NAME=reugbrab400
+
+export REU_FNAME_PREFIX=TRM_

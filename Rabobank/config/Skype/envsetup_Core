@@ -1,0 +1,47 @@
+export HCP_TENANT_NAME=hcpskp400
+
+#
+# Name of one of the valid namespaces in the tenant to validate
+#  connectivity and feature capabilties of the HCP.
+export HCP_TEST_NAMESPACE_NAME=skvgbrab400
+
+
+export VERSKYPE_FNAME_PREFIX=SV_
+
+# Skype ingest name to export mapping. 
+#Change the Skype Job Name setting according to Verint Extraction Manager changes.
+export JOB_NAME=SkypeVoice
+
+# Specify the export name within double quotes if there are spaces between the export name.
+export EXPORT_NAME="Skype Voice Export"
+
+# Maximum number of minutes for stray files to sit around in staging area
+# before moved to Quarantine.
+#  To never move files to quarantine, set this variable to the empty string
+#  or unset it.
+#MAX_FILE_AGE=$((6 * 60))
+unset MAX_FILE_AGE
+
+
+# With Verint call data, the Verint Extraction manager implementation has 
+#   something to be desired.  It may periodically end up sending call data
+#   multiple times and thus ingesting content twice. As a bit of a hack, the
+#   best logic that could be determined is that if any of the jobs send back
+#   too many collection folders, it is an indicator that something could be 
+#   wrong.  If this is detected, no collections will be processed.
+#   
+#   So these settings indicate the maximum number of collection folders that
+#   is considered valid. 
+#       If there is no definition, or it is empty that means there is no maximum.
+#       If number of collection folders for any specificed jobName is over that
+#           value, this is considered a problem.
+#
+#   The form of the variables is:
+#      MAX_<JobName>_COLLECTIONS
+#
+#   And should match the Verint JobName in uppercase with spaces replaced with
+#      "_" char.  For example:
+#
+#       SkypeVoice    becomes MAX_SKYPEVOICE_COLLECTIONS
+#
+MAX_SKYPEVOICE_COLLECTIONS=2

@@ -1,0 +1,217 @@
+#!/bin/bash
+
+COMMAND_NAME=`basename $0`
+
+#export DEBUG=true
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Reuters
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+[ ! -z "$DEBUG" ] && MV_CP_CMD_OPT="-v"
+
+usage() {
+   echo
+   echo "usage: ${COMMAND_NAME} <Input-Folder> <Output-Folder> <Failure-Folder>"
+   echo
+}
+
+
+if [ $# -ne 3 ]; then
+    echo "ERROR: Invalid number of command paramters"
+
+    usage;
+
+    exit 1
+fi
+
+INPUT_FOLDER="$1"
+
+if [ ! -d "$INPUT_FOLDER" ]; then
+   echo "ERROR: <Input-Folder> does not exist. (${INPUT_FOLDER})"
+
+   usage;
+   exit 1
+fi
+
+OUTPUT_FOLDER="$2"  # And construct as full path
+# Make sure output folder is created.
+mkdir -p "${OUTPUT_FOLDER}"
+[ $? -eq 0 ] || { echo "ERROR: Failed to construct output folder: ${OUTPUT_FOLDER}"; exit 1; }
+
+# Get the full absolute path.  Will make it less error prone below.
+OUTPUT_FOLDER="`readlink -e $2`"
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Using output folder: ${OUTPUT_FOLDER}"
+
+# Setup FAILURE_FOLDER. It could be a relative path. If so, need to include the
+#   current location as the front of the path.  It might not exist yet and don't 
+#   want to unless necessary, so can't do a readlink -e on it to resolve to full path.
+if [[ ${3:0:1} == "/" ]]; then
+  FAILURE_FOLDER="$3"
+else
+  FAILURE_FOLDER="`pwd`/$3"
+fi
+
+COLLECTION_FILELIST_MINIMUM="summary.xml summary.xml.sha1 reconcile.xml reconcile.xml.sha1"
+COLLECTION_FILELIST_MESSAGES_ONLY="messages.zip messages.zip.sha1"
+COLLECTION_FILELIST_WITH_ATTACHMENTS="${COLLECTION_FILELIST_MESSAGES_ONLY} attachments.zip attachments.zip.sha1"
+
+processStale() {
+   oneCollection="$1"
+
+   # move whole collection if any files that collection is older than the configured number of minutes
+   if [ `find . -name "${oneCollection}_*" -mmin +${MAX_FILE_AGE} | wc -l` -ne 0 ]; then
+       echo "WARN: Found stale/old files for collection ${oneCollection}. Moving to folder: ${FAILURE_FOLDER}"
+       # Create failure folder
+       mkdir -p "${FAILURE_FOLDER}"
+       if [ $? -ne 0 ]; then
+           echo "ERROR: Failed to construct failure folder: ${FAILURE_FOLDER}"
+       else
+           ${TOOL_HOME}/doCopy ${oneCollection}_* ${FAILURE_FOLDER}
+           [ $? -eq 0 ] && rm -f ${oneCollection}_*
+       fi
+   fi
+}
+
+
+# Get the oldest files first as indicated by the file name.  The file name is 
+#  named as where the first part of the file name is the date of the collection
+#  in the form of <yyyy-MM-ddTHHmmZ>_<filename>.  For example:
+#    2013-06-26T1700+0000_attachments.zip.
+#    2013-06-26T1700+0000_messages.zip
+#
+
+# Algorithm thoughts:
+#   Get list of existing files in input area ordered by file name
+#   Get list of "collections" found based on date part of files.
+#   Find ones that have all needed files.
+#   For complete ones,
+#        create a date folder in output area
+#        move renamed files into created folder (removing date portion of name)
+
+pushd ${INPUT_FOLDER} >/dev/null
+
+# Get the list of collections based on the date portion of the file name.
+for oneCollection in `ls | sort | cut -d "." -f 1 | cut -d "_" -f 1 | uniq`; do 
+    echo "INFO: Evaluating collection: \"${oneCollection}\""
+
+    actualFileCount=`ls ${oneCollection}_* 2>/dev/null | wc -l`
+    expectedFileCountWithoutData=`echo ${COLLECTION_FILELIST_MINIMUM} | wc -w`
+    minimumFileCountWithData=`echo ${COLLECTION_FILELIST_MINIMUM} ${COLLECTION_FILELIST_MESSAGES_ONLY} | wc -w`
+    maximumFileCountWithData=`echo ${COLLECTION_FILELIST_MINIMUM} ${COLLECTION_FILELIST_WITH_ATTACHMENTS} | wc -w`
+
+    #
+    # Make sure we have the right number of files for this collection
+    #
+
+    # Check for minimum number of files
+    if [ $actualFileCount -lt $expectedFileCountWithoutData ]; then
+        echo "WARN: Unexpected minimum number of files for collection (${oneCollection}). Files not processed. Expected: ${expectedFileCountWithoutData} Found: ${actualFileCount}"
+        processStale "${oneCollection}"
+
+        continue;  # Don't do anymore with this collection.
+    fi
+
+    # Check for minimum data set with messages
+    if [ $actualFileCount -ne $expectedFileCountWithoutData \
+         -a $actualFileCount -ne $minimumFileCountWithData \
+         -a $actualFileCount -ne $maximumFileCountWithData ]; then
+        echo "WARN: Unexpected number of files for collection (${oneCollection}). Files not processed. Expected: ${minimumFileCountWithData} or ${maximumFileCountWithData}. Found: ${actualFileCount}"
+
+        processStale "${oneCollection}"
+
+        continue;  # Don't do anymore with this collection.
+    fi
+
+    #
+    # Make sure we have all minimum required files.
+    #
+    fileIsMissing=false
+    for oneFile in ${COLLECTION_FILELIST_MINIMUM}; do
+       [ -z "$DEBUG" ] || echo "DEBUG: Checking for file: $oneFile"
+       if [ ! -f "${oneCollection}_${oneFile}" ]; then
+           echo "WARN: Missing required file: ${oneCollection}_${oneFile}"
+           fileIsMissing=true
+           break  # No use continuing looking.
+       fi
+    done
+
+    if [ $fileIsMissing = true ]; then
+        processStale "${oneCollection}"
+
+        continue;
+    fi
+
+    # If we think we have a data set with messages, go make sure we have all the files.
+    if [ $actualFileCount -gt $minimumFileCountWithData ]; then
+        # Make sure we have all required files when there is data.
+        fileIsMissing=false
+
+        # build a list of what to check for on whether there are just messages or attachments too.
+        if [ $actualFileCount -eq $minimumFileCountWithData ]; then
+           checkList="${COLLECTION_FILELIST_MESSAGES_ONLY}"
+        else
+           checkList="${COLLECTION_FILELIST_WITH_ATTACHMENTS}"
+        fi
+
+        for oneFile in ${checkList}; do
+           [ -z "$DEBUG" ] || echo "DEBUG: Checking for file: $oneFile"
+           if [ ! -f "${oneCollection}_${oneFile}" ]; then
+               echo "WARN: Missing required file: ${oneCollection}_${oneFile}"
+               fileIsMissing=true
+               break  # No use continuing looking.
+           fi
+        done
+
+        if [ $fileIsMissing = true ]; then
+            processStale "${oneCollection}"
+
+            continue;
+        fi
+    fi
+
+    # Move the files to the destination folder
+    mkdir -p "${OUTPUT_FOLDER}/${oneCollection}"
+    hadFailure=false
+    filesCollected=
+    for oneFile in ${oneCollection}_*; do
+        destFile="${OUTPUT_FOLDER}/${oneCollection}/`echo $oneFile | cut -d "_" -f 2`"
+
+        ${TOOL_HOME}/doCopy ${oneFile} ${destFile}
+        if [ $? -ne 0 ]; then
+            hadFailure=true
+            echo "ERROR: Failed to perform file copy for file: $oneFile"
+            break;
+        fi
+
+        # Make sure we have appropriate permissions.
+        chmod 660 ${destFile}
+
+        # Build a list so we remove files moved.
+        [ ! -z "$filesCollected" ] && filesCollected+=" "
+        filesCollected+="${oneFile}"
+    done
+ 
+    if [ $hadFailure = false ]; then
+        # Successfully copied all files, now remove them from staging
+        # area.
+        [ ! -z "$filesCollected" ] && rm -f ${filesCollected} 
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to perform file remove files from staging area for collection: ${oneCollection}"
+            break;
+        fi
+        echo "INFO: Constructed collection: \"${oneCollection}\""
+    else
+        echo "ERROR: Failed to constructed collection: \"${oneCollection}\""
+        rm -rf ${OUTPUT_FOLDER}/${oneCollection} # Cleanup
+    fi
+done
+
+popd > /dev/null
+
+# Cleanup the empty collection folders
+find ${INPUT_FOLDER}/* -type d -empty -delete 2>/dev/null
+
+exit 0

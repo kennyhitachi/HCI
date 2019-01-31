@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField>
+  <!-- Rabobank Version 2.1.9 -->
+
+  <!--
+     *****
+           Common Definitions
+     *****
+  -->
+  <Field>
+    <FieldName>CommonAttachmentFileName</FieldName>
+    <TargetPath>/TransformData/Attachments/Attachment/FileName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>CommonAttachmentAttachmentHCPReference</FieldName>
+    <TargetPath>/TransformData/Attachments/Attachment/HCPReference</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>CommonAttachmentSize</FieldName>
+    <TargetPath>/TransformData/Attachments/Attachment/FileSize</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+
+  <!--
+     *****
+           Reuters Definitions
+     *****
+  -->
+  <Field>
+    <FieldName>ReutersCompID</FieldName>
+    <TargetPath>/TransformData/Headers/ComplianceSetup/ID</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersChatDataPeriodFrom</FieldName>
+    <TargetPath>/TransformData/Headers/DataPeriod/From</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersChatDataPeriodTo</FieldName>
+    <TargetPath>/TransformData/Headers/DataPeriod/To</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersChatParticipantEmail</FieldName>
+    <TargetPath>/TransformData/UserInfo/Email</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersChatUserInfoFullName</FieldName>
+    <TargetPath>/TransformData/UserInfo/FullName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <!-- Attachments -->
+  <Field>
+    <FieldName>ReutersAttachmentMessageIdentifier</FieldName>
+    <TargetPath>/TransformData/References/Message/MessageID</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersAttachmentUser</FieldName>
+    <TargetPath>/TransformData/References/Message/User</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersAttachmentHCPReference</FieldName>
+    <TargetPath>/TransformData/References/Message/HCPReference</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersAttachmentFileName</FieldName>
+    <TargetPath>/TransformData/References/Message/FileAttachment/Name</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>ReutersAttachmentHyperLinkName</FieldName>
+    <TargetPath>/TransformData/References/Message/FileAttachment/HyperLinkName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <!--
+     *****
+           Verint Definitions
+     *****
+  -->
+  <Field>
+    <FieldName>VerintCallType</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/PrivateData/PrivateData/DictionaryEntry_CallType</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintCalledParty</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/PrivateData/PrivateData/DictionaryEntry_CalledParty</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintCallingParty</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/PrivateData/PrivateData/DictionaryEntry_CallingParty</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintUserIdentifier</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/PrivateData/PrivateData/DictionaryEntry_UserIdentifier</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintDeviceIdentifier</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/PrivateData/PrivateData/DictionaryEntry_DeviceIdentifier</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintTraderIdentifier</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/PrivateData/PrivateData/DictionaryEntry_TraderIdentifier</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintTraderName</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/PrivateData/PrivateData/DictionaryEntry_TraderName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintCallDuration</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/Duration</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>VerintCallStartTime</FieldName>
+    <TargetPath>/TransformData/CAudioFile/CRI/StartTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+
+  <!--
+     *****
+           Bloomberg Definitions
+     *****
+  -->
+
+  <!--
+       Bloomberg MSG (Messages)
+  -->
+  <Field>
+    <FieldName>BloombergMsgCount</FieldName>
+    <TargetPath>/TransformData/Messages/@count</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergMsgStartDateTime</FieldName>
+    <TargetPath>/TransformData/Messages/StartDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergMsgEndDateTime</FieldName>
+    <TargetPath>/TransformData/Messages/EndDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergMsgParticipantCorporateEmailAddress</FieldName>
+    <TargetPath>/TransformData/Messages/Participants/Participant/CorporateEmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergMsgParticipantEmailAddress</FieldName>
+    <TargetPath>/TransformData/Messages/Participants/Participant/BloombergEmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <!--
+       Bloomberg IB (Conversations)
+  -->
+
+  <!--  General Fields -->
+  <Field>
+    <FieldName>BloombergIBCount</FieldName>
+    <TargetPath>/TransformData/Conversation/Activities/@count</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBRoomID</FieldName>
+    <TargetPath>/TransformData/Conversation/RoomID</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBStartDateTime</FieldName>
+    <TargetPath>/TransformData/Conversation/StartDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBEndDateTime</FieldName>
+    <TargetPath>/TransformData/Conversation/EndDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBParticipantCorporateEmailAddress</FieldName>
+    <TargetPath>/TransformData/Conversation/Participants/Participant/CorporateEmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBParticipantEmailAddress</FieldName>
+    <TargetPath>/TransformData/Conversation/Participants/Participant/EmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <!--  Attachment Fields -->
+  <Field>
+    <FieldName>BloombergIBAttachmentCount</FieldName>
+    <TargetPath>/TransformData/Conversation/Activities/Attachment/@count</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBAttachmentStartDateTime</FieldName>
+    <TargetPath>/TransformData/Conversation/Activities/Attachment/StartDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBAttachmentEndDateTime</FieldName>
+    <TargetPath>/TransformData/Conversation/Activities/Attachment/EndDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+
+  <!--  Message Fields -->
+  <Field>
+    <FieldName>BloombergIBMessageCount</FieldName>
+    <TargetPath>/TransformData/Conversation/Activities/Message/@count</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBMessageStartDateTime</FieldName>
+    <TargetPath>/TransformData/Conversation/Activities/Message/StartDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergIBMessageEndDateTime</FieldName>
+    <TargetPath>/TransformData/Conversation/Activities/Message/EndDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+
+  <!--
+       Bloomberg Attachments Objects Metadata
+  -->
+
+  <!--  MSG (Message) Fields -->
+  <Field>
+    <FieldName>BloombergAttachmentMSGHCPReference</FieldName>
+    <TargetPath>/TransformData/References/Message/HCPReference</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGIdentifier</FieldName>
+    <TargetPath>/TransformData/References/Message/MsgID</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGDateTime</FieldName>
+    <TargetPath>/TransformData/References/Message/MsgTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGDateTimeUTC</FieldName>
+    <TargetPath>/TransformData/References/Message/MsgTimeUTC</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGFileName</FieldName>
+    <TargetPath>/TransformData/References/Message/Attachment/FileName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGFileSize</FieldName>
+    <TargetPath>/TransformData/References/Message/Attachment/FileSize</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGSenderFullName</FieldName>
+    <TargetPath>/TransformData/References/Message/Sender/User/FullName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGSenderFirstName</FieldName>
+    <TargetPath>/TransformData/References/Message/Sender/User/FirstName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGSenderLastName</FieldName>
+    <TargetPath>/TransformData/References/Message/Sender/User/LastName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGSenderEmailAddress</FieldName>
+    <TargetPath>/TransformData/References/Message/Sender/User/BloombergEmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentMSGSenderCorporateEmailAddress</FieldName>
+    <TargetPath>/TransformData/References/Message/Sender/User/CorporateEmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+
+  <!--  IB (Conversation) Fields -->
+  <Field>
+    <FieldName>BloombergAttachmentIBHCPReference</FieldName>
+    <TargetPath>/TransformData/References/Conversation/HCPReference</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBDateTime</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/DateTime</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBDateTimeUTC</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/DateTimeUTC</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBConversationID</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/ConversationID</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBFileName</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/FileName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBFileSize</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/FileSize</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBSenderLoginName</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/User/LoginName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBSenderFirstName</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/User/FirstName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBSenderLastName</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/User/LastName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBSenderFullName</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/User/FullName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBSenderEmailAddress</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/User/EmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+  <Field>
+    <FieldName>BloombergAttachmentIBSenderCorporateEmailAddress</FieldName>
+    <TargetPath>/TransformData/References/Conversation/Attachment/User/CorporateEmailAddress</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <!--
+     *****
+           Algomi Definitions
+     *****
+  -->
+  <Field>
+    <FieldName>AlgomiRegion</FieldName>
+    <TargetPath>/TransformData/CollectionInfo/Region</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiChatType</FieldName>
+    <TargetPath>/TransformData/ChatRecord/chatType</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiOrderId</FieldName>
+    <TargetPath>/TransformData/ChatRecord/orderId</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiClientName</FieldName>
+    <TargetPath>/TransformData/ChatRecord/clientName</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiIsinCode</FieldName>
+    <TargetPath>/TransformData/ChatRecord/isinCode</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiIsinDescription</FieldName>
+    <TargetPath>/TransformData/ChatRecord/isinDescription</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiQuantity</FieldName>
+    <TargetPath>/TransformData/ChatRecord/quantity</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiChatMemberCount</FieldName>
+    <TargetPath>/TransformData/ChatRecord/ChatMembers/@count</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiChatMemberUserId</FieldName>
+    <TargetPath>/TransformData/ChatRecord/ChatMembers/userId</TargetPath>
+    <FieldType>String</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiChatMessageCount</FieldName>
+    <TargetPath>/TransformData/ChatRecord/ChatMessages/@count</TargetPath>
+    <FieldType>Long</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiChatMessagesStartDateTime</FieldName>
+    <TargetPath>/TransformData/ChatRecord/ChatMessages/startDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+
+  <Field>
+    <FieldName>AlgomiChatMessagesEndDateTime</FieldName>
+    <TargetPath>/TransformData/ChatRecord/ChatMessages/endDateTime</TargetPath>
+    <FieldType>Date</FieldType>
+  </Field>
+
+</CustomField>

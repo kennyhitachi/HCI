@@ -1,0 +1,364 @@
+#!/bin/bash
+
+#export DEBUG=true
+
+# Setup Environment for specific DATA_SET
+export DATA_SET=Algomi
+unset SUBSET_NAME
+. `dirname $0`/config/envsetup
+
+export OBJECT_TYPES=("${ALG_SYN_OBJ}" "${ALG_HNY_OBJ}")
+
+# Only allow one instance for a given config at a time.
+get_lock
+
+# Initialize Counters
+init_report_counters
+
+ExitCode=$EXIT_SUCCESS  # Assume the best
+ExitMessage="(none)"
+
+# Make sure we have files
+STAGING_FOLDER="${STAGING_AREA}"
+if [ ! -d "${STAGING_FOLDER}" ]; then
+    ExitCode=$EXIT_ERROR
+
+    report_status $ExitCode "ERROR: Staging Folder (${STAGING_FOLDER}) does not exist."
+
+    exit $ExitCode;
+fi
+STAGING_FOLDER=`readlink -e "${STAGING_FOLDER}"`
+
+echo "INFO: [${DATA_SET}] Starting Processing"
+log_timestamp
+
+#
+# Setup folders/files and variables to them.
+#
+mkdir -p ${PROCESSING_AREA} ${QUARANTINE_AREA}
+
+RAW_FOLDER=`readlink -e ${PROCESSING_AREA}`/${RAW_NAME}
+TRANSFORM_FOLDER=`readlink -e ${PROCESSING_AREA}`/${TRANSFORM_NAME}
+FAILURE_FOLDER=`readlink -e ${QUARANTINE_AREA}`
+
+PROCESSING_LOG=`readlink -e ${PROCESSING_AREA}`/history.log
+
+mkdir -p ${RAW_FOLDER} ${TRANSFORM_FOLDER}
+
+rm -rf ${TOOL_TMP} # Start fresh
+mkdir -p ${TOOL_TMP}
+
+if [ `ls "${STAGING_FOLDER}" | wc -l` -lt 1 ]; then
+   ExitCode=$EXIT_WARNING
+   ExitMessage="No files found in staging area: ${STAGING_FOLDER}"
+
+   echo "WARN: $ExitMessage"
+   log_timestamp
+else
+
+    ##
+    # Collect full collection(s) from staging area and place in RAW_FOLDER area
+    ##
+    [ ! -z "$DEBUG" ] && echo "DEBUG: Performing data set collection from: ${STAGING_FOLDER}"
+
+    TMP_COLLECT_FILE=${TOOL_TMP}/`basename $0`.$$
+
+    ${TOOL_HOME}/Collect${DATA_SET} ${STAGING_FOLDER} ${RAW_FOLDER} ${FAILURE_FOLDER} | tee $TMP_COLLECT_FILE
+
+    collectWarnings=`grep "WARN:" $TMP_COLLECT_FILE | wc -l`
+    ((CollectFileWarningCount+=${collectWarnings}))
+    collectErrors=`grep "ERROR:" $TMP_COLLECT_FILE | wc -l`
+    ((CollectFileFailureCount+=${collectErrors}))
+
+    rm -f ${TMP_COLLECT_FILE}
+
+    if [ 0 != $CollectFileWarningCount ]; then
+      ExitCode=$EXIT_WARNING
+      ExitMessage="Detected Warning(s) during file collection from: ${STAGING_FOLDER}"
+    fi
+    if [ 0 != $CollectFileFailureCount ]; then
+      ExitCode=$EXIT_ERROR
+      ExitMessage="Detected Error(s) during file collection from: ${STAGING_FOLDER}"
+    fi
+fi
+
+##
+# For all the complete collections we grabbed, it is time to process them.
+##
+pushd "${RAW_FOLDER}" > /dev/null
+
+for oneRegion in `ls -d * 2> /dev/null`; do
+    if [ ! -d "$oneRegion" ]; then
+       echo "WARN: Found non-directory file in Processing area. Ignored. ($oneRegion)"
+
+       continue
+    fi
+
+    # Head down into region and process next level.
+    pushd "${oneRegion}" > /dev/null
+ 
+    ###
+    ### Prepare Raw Files
+    ###
+    echo "INFO: [${DATA_SET}/${oneRegion}] Starting Processing"
+
+    log_timestamp
+
+    # Now process each of the collection folder for this region.
+    for collectionFolder in `ls -d */* 2> /dev/null`; do
+
+        # Only process folders at this level.
+        if [ ! -d "$collectionFolder" ]; then
+           echo "WARN: Found non-directory file in Collection folder. Ignored. ($collectionFolder)"
+
+           continue
+        fi
+
+        echo "INFO: [${DATA_SET}/${oneRegion}/${collectionFolder}] Validating Raw Folder"
+        log_timestamp
+
+        ${TOOL_HOME}/Validate${DATA_SET} "${collectionFolder}" "${TOOL_TMP}"
+     
+        # Only continue processing this collection if successful.  Otherwise try to process the next one.
+        if [ $? != 0 ]; then
+          ExitMessage="Validation Failed. Moving $oneRegion/$collectionFolder to Failure folder" 
+          echo "ERROR: $ExitMessage"
+
+          pushd ${TOOL_HOME} > /dev/null
+          mkdir -p ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${collectionFolder}
+          # Note: Not just moving folder because there might be one already existing from prior failures.
+          ${TOOL_HOME}/doCopy -fr ${RAW_FOLDER}/${oneRegion}/${collectionFolder}/* ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${collectionFolder}
+          rm -fr ${RAW_FOLDER}/${oneRegion}/${collectionFolder}
+          popd > /dev/null
+
+          ((ValidationFailureCount++))
+          ExitCode=$EXIT_ERROR
+  
+          continue;
+        fi
+
+        # Compute Checksum of collection.
+        checkSumString="${oneRegion}/${collectionFolder} `sha1sum ${collectionFolder}/* | cut -d " " -f 1`"
+        collectionCheckSum=`echo -n "${checkSumString}" | sha1sum | cut -d " " -f 1`
+
+        # First see if we have seen this one yet.
+        LogEntry=`cut -d "," -f 2 ${PROCESSING_LOG} 2>/dev/null | grep ${collectionCheckSum}`
+        if [ ! -z "${LogEntry}" ]; then
+            echo "ERROR: Collection checksum found: ${collectionCheckSum}"
+            ExitMessage="Found collection already processed: ${oneRegion}/${collectionFolder}"
+            echo "ERROR: $ExitMessage"
+
+	    if [ -d "${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${collectionFolder}" ]; then
+                # Seems we have seen this a few times.  Keep the older one.
+                rm -rf ${RAW_FOLDER}/${oneRegion}/${collectionFolder}
+            else
+                # Copy/Delete what we found to the failure area.
+                mkdir -p ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${collectionFolder}
+                # Note: Not just moving folder because there might be one already existing from prior failures.
+                ${TOOL_HOME}/doCopy -fr ${RAW_FOLDER}/${oneRegion}/${collectionFolder}/* ${FAILURE_FOLDER}/${RAW_NAME}/${oneRegion}/${collectionFolder}
+                rm -rf ${RAW_FOLDER}/${oneRegion}/${collectionFolder}
+            fi
+
+            ((DuplicateFailureCount++))
+            ExitCode=$EXIT_WARNING
+
+            continue;  # Don't do anymore with this one.
+        fi
+
+        # Record that we saw this one.
+        echo "`date "+%Y %m %d %H %M %S"`,${collectionCheckSum},${oneRegion}/${collectionFolder}" >> ${PROCESSING_LOG}
+
+        ###
+        ### Prepare Transform files.
+        ###
+        echo "INFO: [${DATA_SET}/${oneRegion}/${collectionFolder}] Preparing Transform Folder"
+        log_timestamp
+
+        mkdir -p ${TRANSFORM_FOLDER}/${oneRegion}/${collectionFolder}
+        ${TOOL_HOME}/doCopy -fr ${RAW_FOLDER}/${oneRegion}/${collectionFolder}/* ${TRANSFORM_FOLDER}/${oneRegion}/${collectionFolder}
+   
+        pushd "${TRANSFORM_FOLDER}/${oneRegion}/${collectionFolder}" > /dev/null
+
+        # Prepare the files for processing by renaming and such.
+        #   First remove the date portion on all files.
+        for oneFile in `ls >/dev/null`; do
+            destFile=`echo $oneFile | sed 's/\.[0-9].*\./\./1'`
+            mv ${MV_CP_CMD_OPT} "${oneFile}" "${destFile}"
+        done
+        
+        # Extract individual Chat Records
+        for rawFile in `ls *.xml 2> /dev/null`; do
+
+           ${TOOL_HOME}/XSLTRun -xsl:${TOOL_CONFIG}/TransformRecords.xslt \
+                  -s:${rawFile} \
+           | ${TOOL_HOME}/XMLTagExtractor -q -f -m ChatRecord 
+         
+           alsIndex=1
+           alhIndex=1 
+        
+           # Extract region from the Chat Record file
+           destregionFolder=`echo "${rawFile}" | cut -d "." -f 2`"_data"
+
+           # Process Each ChatRecord File 
+
+           for chatRecordFile in `ls ChatRecord* 2> /dev/null`; do
+           
+             # Extract chatType from the Chat Record file
+             chatType=`grep chatType $chatRecordFile | sed -e 's,.*<chatType>\([^<]*\)</chatType>.*,\1,g'`
+           
+             # Create the directory structure
+             mkdir -p ${TRANSFORM_FOLDER}/${destregionFolder}/${collectionFolder}
+         
+             # Formulate the filename from the collectionFolder
+             collectionYear=`echo "${collectionFolder}" | cut -d "/" -f 1` 
+             collectionDate=`echo "${collectionFolder}" | cut -d "/" -f 2`
+                    
+             fileName=`echo "${collectionYear:2:2}-$collectionDate" | sed -r 's/[-]+//g' | cut -d "T" -f 1`
+           
+             #Verify the chatType
+             if [ "$chatType" = "${ALG_SYN_OBJ}" ]; then
+                ${TOOL_HOME}/doCopy -fr $chatRecordFile ${TRANSFORM_FOLDER}/${destregionFolder}/${collectionFolder}/${ALGSYN_FNAME_PREFIX}${fileName}${alsIndex}.xml
+                ((alsIndex++))
+             fi
+           
+             if [ "$chatType" = "${ALG_HNY_OBJ}" ]; then
+                ${TOOL_HOME}/doCopy -fr $chatRecordFile ${TRANSFORM_FOLDER}/${destregionFolder}/${collectionFolder}/${ALGHNY_FNAME_PREFIX}${fileName}${alhIndex}.xml
+                ((alhIndex++))
+             fi
+           
+           done  # End for ChatRecord
+           
+          echo "INFO: [${DATA_SET}/${destregionFolder}/${collectionFolder}] Number of Synchronicity Conversations: $((alsIndex-1))"
+          echo "INFO: [${DATA_SET}/${destregionFolder}/${collectionFolder}] Number of Honeycomb Conversations: $((alhIndex-1))"
+
+          #Cleanup ChatRecords for the region.
+          rm ChatRecord* 2> /dev/null
+
+       done  # End for RawFile
+
+       popd > /dev/null
+
+    done  # End for collectionFolder
+
+    popd > /dev/null
+
+    # Remove the whole region as this is just a temporary one to construct all the others.
+    [ ! -z "$DEBUG" ] \
+       && echo "DEBUG: Removing firm-wide collection: ${TRANSFORM_FOLDER}/${oneRegion}"
+    rm -rf "${TRANSFORM_FOLDER}/${oneRegion}"
+
+done # End for region
+
+popd > /dev/null
+
+###
+### Set ItemsProcessed with the number of Conversations found and messages in messages.xml files
+###   Note: not doing this in the loop above, because it might not execute because we are 
+###      reprocessing content already in WorkArea.
+###    
+
+# Tally up how many Synchronicity Items found.
+numSyncFiles=`find ${TRANSFORM_FOLDER} -name "${ALGSYN_FNAME_PREFIX}*.xml" | wc -l`
+
+((ItemsProcessed[0]+=${numSyncFiles}))
+
+
+# Tally up how many HoneyComb Items  found.
+numHnyFiles=`find ${TRANSFORM_FOLDER} -name "${ALGHNY_FNAME_PREFIX}*.xml" | wc -l`
+
+((ItemsProcessed[1]+=${numHnyFiles}))
+
+
+###
+### Ingest Raw into HCP
+###
+echo "INFO: [${DATA_SET}] Ingesting Raw Content into HCP"
+log_timestamp
+
+${TOOL_HOME}/runComet ${DATA_SET} Raw
+
+###
+### Ingest Tranformed into HCP
+###
+echo "INFO: [${DATA_SET}] Ingesting Transformed Content into HCP"
+log_timestamp
+
+${TOOL_HOME}/runComet ${DATA_SET} Transform
+
+###
+### Look for unexpected files left behind.  Cleanup where necessary.
+###
+echo "INFO: [${DATA_SET}] Looking for residual files and cleaning up"
+log_timestamp
+
+#
+# First look at Raw files for residual files.
+#
+orphanFileCount=`find ${RAW_FOLDER} -type f 2>/dev/null | wc -l`
+if [ 0 -ne $orphanFileCount ]; then
+  echo "ERROR: [${DATA_SET}] Unexpected ${RAW_NAME} residual files found. Files being moved to Failure folder."
+
+  # Move files to Failure Folder.
+  mkdir -p ${FAILURE_FOLDER}/${RAW_NAME}
+  # Note: Not just moving folder because there might be one already existing from prior failures.
+  ${TOOL_HOME}/doCopy -fr ${RAW_FOLDER} ${FAILURE_FOLDER}
+  
+  ((ResidualFileFailureCount+=${orphanFileCount}))
+  ExitCode=$EXIT_ERROR
+  ExitMessage="Unexpected ${RAW_NAME} residual files found."
+fi
+
+# All done, clean up.
+rm -rf ${RAW_FOLDER}
+
+#
+# Now look at Transform files for residual files.
+#
+orphanFileCount=`find ${TRANSFORM_FOLDER} -type f 2>/dev/null | wc -l`
+if [ 0 -ne $orphanFileCount ]; then
+  ExitCode=$EXIT_ERROR
+  ExitMessage="[${DATA_SET}] Unexpected ${TRANSFORM_NAME} residual files found. Files being moved to Failure folder."
+  echo "ERROR: $ExitMessage"
+
+  # Now clean up any remaining 
+  # Estimate Ingestion Failure based on Synchronicity Objects
+  IngestFailureCount=`find ${TRANSFORM_FOLDER} -name "${ALGSYN_FNAME_PREFIX}*.xml" | wc -l`
+
+  # Add in number of HoneyComb Objects that failed into IngestFailureCount
+  hnyFileCount=`find ${TRANSFORM_FOLDER} -name "${ALGHNY_FNAME_PREFIX}*.xml" | wc -l`
+  ((IngestFailureCount+=${hnyFileCount}))
+
+  # Move content to failure folder.
+  mkdir -p ${FAILURE_FOLDER}/${TRANSFORM_NAME}
+  # Note: Not just moving folder because there might be one already existing from prior failures.
+  ${TOOL_HOME}/doCopy -fr ${TRANSFORM_FOLDER} ${FAILURE_FOLDER}
+
+  ((ResidualFileFailureCount+=${orphanFileCount}))
+fi
+
+# Everything should either be ingested or moved to Quarantine
+rm -rf ${TRANSFORM_FOLDER} 
+
+#
+# Clean up the history file
+#
+if [ -f "${PROCESSED_LOG}" ]; then
+    # Need a temporary file to write results into
+    TMP_LOG_FILE=${PROCESSED_LOG}.$$
+
+    awk -F "," -v KEEP_DAYS=$MAX_HISTORY_IN_DAYS '
+    { 
+      if ( mktime($1) > systime() - (KEEP_DAYS * 24 * 60 * 60) )
+          print $0;
+    }' ${PROCESSED_LOG} > $TMP_LOG_FILE
+
+    mv -f $TMP_LOG_FILE $PROCESSED_LOG
+fi
+
+# All done, report the status to where configured.
+report_status $ExitCode "$ExitMessage"
+
+echo "INFO: [${DATA_SET}] Finished Processing ($ExitCode - $ExitMessage)"
+log_timestamp
+
+exit $ExitCode

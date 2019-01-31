@@ -1,0 +1,93 @@
+#!/bin/bash
+
+MY_DIR=`dirname $0`
+CMD_NAME=`basename $0`
+TOOL_HOME=`readlink -e $MY_DIR`
+
+#export DEBUG=yes
+
+usage() {
+   echo
+   echo "Usage: `basename $0` <Collection-Folder> [<tmp-Folder>]"
+   echo
+}
+
+function cleanup() {
+   popd >/dev/null
+
+   if [ -z "$DEBUG" ]; then
+       rm -rf "${TMP_FOLDER}"
+   else 
+       echo "DEBUG: Temporary files left in: ${TMP_FOLDER}"
+   fi
+}
+
+if [ $# -lt 1 -o $# -gt 2 ]; then
+   usage
+
+   exit 1
+fi
+
+if [ ! -d "$1" ]; then
+   echo "ERROR: Non-existing folder specified as <Collection-Folder> input ($1)"
+   
+   usage
+   exit 1
+fi
+
+COLLECTION_FOLDER=`readlink -e "$1"` # Now have fully qualified path.
+
+TMP_FOLDER=/tmp
+if [ -z "$2" ]; then
+   TMP_FOLDER=${TOOL_HOME}/tmp${CMD_NAME}
+else
+   TMP_FOLDER="$2/${CMD_NAME}.$$"
+fi
+mkdir -p "${TMP_FOLDER}"
+TMP_FOLDER=`readlink -e "${TMP_FOLDER}"`
+
+pushd "${COLLECTION_FOLDER}" > /dev/null
+
+trap cleanup SIGHUP SIGINT SIGTERM SIGQUIT SIGABRT
+
+[ ! -z "$DEBUG" ] && echo "DEBUG: Starting: ${COLLECTION_FOLDER}"
+
+if [ ! -f "CD_Mappings.xml" ]; then
+    echo "ERROR: Missing file CD_Mappings.xml"
+    cleanup
+    exit 1
+fi
+
+if [ ! -d "WAV" -o ! -d "IDX" ]; then
+    echo "ERROR: Missing either WAV or IDX folder in collection"
+    cleanup
+    exit 1
+fi
+
+numWAVFiles=`ls WAV/*.wav 2>/dev/null | wc -l`
+numIDXFiles=`ls IDX/*.xml 2>/dev/null | wc -l`
+
+if [ $numWAVFiles -ne $numIDXFiles ]; then
+    echo "ERROR: Mismatched file count. Count WAV Files: ($numWAVFiles), Count IDX files ($numIDXFiles)"
+    cleanup
+    exit 1
+fi
+
+# Now make sure there are matches for every file.
+
+ls WAV/*.wav 2>/dev/null | cut -d "/" -f 2- | cut -d "." -f 1 | sort > ${TMP_FOLDER}/WAVFiles.lst
+ls IDX/*.xml 2>/dev/null | cut -d "/" -f 2- | cut -d "." -f 1 | sort > ${TMP_FOLDER}/IDXFiles.lst
+
+diff ${TMP_FOLDER}/WAVFiles.lst ${TMP_FOLDER}/IDXFiles.lst 2>&1 >/dev/null
+if [ $? -ne 0 ]; then
+    echo "ERROR: Mismatched files between WAV and IDX files. Output of 'diff WAVFiles IDXFiles' follows:"
+    
+    diff ${TMP_FOLDER}/WAVFiles.lst ${TMP_FOLDER}/IDXFiles.lst
+    
+    cleanup
+    exit 1
+fi
+
+cleanup
+
+exit 0
