@@ -1,0 +1,113 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+  echo
+  echo "usage: `basename $0` <Root-Path>"
+  echo
+  echo "   <Root-Path> should be the Bloomberg WorkArea folder with subfolders of"
+  echo "       the form <Region>/<Account>/<Collection>"
+  echo
+
+  exit 1
+fi
+
+if [ ! -d "$1" ]; then
+  echo
+  echo "Invalid <Root-Path>. Not a valid directory"
+  echo
+
+  exit 1
+fi
+
+TMP_MSGLIST="`pwd`/MsgFile.list.$$"
+TMP_CONVLIST="`pwd`/ConvFile.list.$$"
+TMP_FOLDERLIST="`pwd`/Folder.list.$$"
+
+totalSumFolders=0
+
+pushd "$1" >/dev/null
+
+for regionFolder in `find * -maxdepth 0 -type d 2>/dev/null`; do
+
+ pushd $regionFolder >/dev/null
+
+ for accountFolder in `find * -maxdepth 0 -type d 2>/dev/null `; do
+     pushd $accountFolder >/dev/null
+
+     for collectionFolder in `find * -maxdepth 0 -type d 2>/dev/null`; do
+        pushd $collectionFolder >/dev/null
+
+        # Refresh tmp files.
+        rm -f "$TMP_MSGLIST" "$TMP_CONVLIST" "$TMP_FOLDERLIST"
+        touch "$TMP_MSGLIST" "$TMP_CONVLIST" "$TMP_FOLDERLIST"
+
+        pwd # Print where we are
+        if [ -f messages.xml ]; then
+           cat messages.xml | grep "<FileID>" | cut -d ">" -f 2 | cut -d "<" -f 1 | sort -u > "${TMP_MSGLIST}"
+        fi
+
+        if [ -d conversation ]; then
+           cat conversation/Conversation_*.xml | grep "<FileID>" | cut -d ">" -f 2 | cut -d "<" -f 1 | sort -u > "$TMP_CONVLIST"
+        fi
+
+        if [ -d attachments ]; then
+           pushd attachments >/dev/null
+           
+	   ls 2>/dev/null | sort -u > "$TMP_FOLDERLIST"
+
+           popd >/dev/null
+        fi
+
+        echo "Count [Messages]:      `cat $TMP_MSGLIST | wc -l`"
+        echo "Count [Conversations]: `cat $TMP_CONVLIST | wc -l`"
+        countThisFolder=`cat $TMP_FOLDERLIST | wc -l`
+        ((totalSumFolders+=$countThisFolder))
+        echo "Count [Folder]:        $countThisFolder"
+
+        missingMsg=`diff "$TMP_MSGLIST" "$TMP_FOLDERLIST" | grep "^<" | cut -d " " -f 2-`
+        missingConv=`diff "$TMP_CONVLIST" "$TMP_FOLDERLIST" | grep "^<" | cut -d " " -f 2-`
+
+        if [ ! -z "$missingMsg" ]; then
+            echo -n "Missing [Message]: "
+            for oneFile in $missingMsg; do
+                echo -n "$oneFile "
+            done
+            echo
+        fi
+
+        if [ ! -z "$missingConv" ]; then
+            pushd conversation >/dev/null
+            for oneFile in $missingConv; do
+                echo "Missing [Conversation]: $oneFile ( `grep -l "<FileID>$oneFile" Conversation_*.xml | tr '\n' ' '`)"
+            done
+            popd >/dev/null
+        fi
+
+        # Determine if there are any extra files
+        extraFiles=`cat "${TMP_MSGLIST}" "${TMP_CONVLIST}" | sort -u | diff - "$TMP_FOLDERLIST" | grep "^>" | cut -d " " -f 2- | tr '\n' ' '`
+        if [ ! -z "$extraFiles" ]; then
+            echo "Extra: $extraFiles"
+        fi
+
+        popd >/dev/null
+     done
+
+     popd >/dev/null
+ done
+
+ popd >/dev/null
+done
+
+totalAllFolders=`find . -type d -name "attachments" -exec ls -1 {} \; | wc -l`
+if [ $totalSumFolders -ne $totalAllFolders ]; then
+   echo "ERROR: Total[Sum] ($totalSumFolders) <> Total[Folders] ($totalAllFolders)"
+fi
+
+popd >/dev/null
+
+# Cleanup
+rm -f "$TMP_MSGLIST" "$TMP_CONVLIST" "$TMP_FOLDERLIST"
+
+
+
+exit 0

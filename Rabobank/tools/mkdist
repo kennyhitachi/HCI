@@ -1,0 +1,43 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+    echo
+    echo "Usage: `basename $0` <version>"
+    echo
+    exit 1;
+fi
+
+TMP_DIR=mkdist_tmp.$$
+VERSION=$1
+
+PROJECT_FOLDER=Ingestor
+TAR_BASE_NAME=ingestor
+
+cleanup() {
+  rm -rf ${TMP_DIR}
+}
+
+trap "cleanup" EXIT
+
+
+# Remove all temp/runtime files.
+rm -rf ${PROJECT_FOLDER}/tmp ${PROJECT_FOLDER}/logs/* ${PROJECT_FOLDER}/locks
+
+# Construct a full tarball.
+tar czf ${TAR_BASE_NAME}_v${VERSION}.tar.gz ${PROJECT_FOLDER}
+
+# Squirrel away copies of the doc files
+rm -rf ${TMP_DIR}
+mkdir -p ${TMP_DIR}
+mv -f ${PROJECT_FOLDER}/doc ${TMP_DIR}
+mkdir -p ${TMP_DIR}/src
+mv -f ${PROJECT_FOLDER}/src/*.pptx ${PROJECT_FOLDER}/src/*.docx ${TMP_DIR}/src 2>/dev/null
+
+# Build the nodocs file.
+tar czf ${TAR_BASE_NAME}_v${VERSION}_nodocs.tar.gz ${PROJECT_FOLDER}
+
+# Put it all back.
+mkdir -p ${PROJECT_FOLDER}/doc
+(cd ${TMP_DIR}; find * -type f -exec mv -f "{}" "../${PROJECT_FOLDER}/{}" \;)
+
+exit 0
