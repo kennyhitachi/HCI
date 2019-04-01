@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hitachi.hci.rest.api.stage",
+    "description": "REST Stage",
+    "displayName": "REST Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.rest.api.stage.RestAPIStage",
+            "pluginName": "com.hitachi.hci.rest.api.stage.restAPIStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.3"
+}
+
