@@ -1,0 +1,14 @@
+{
+    "bundleName": "com.hitachi.hci.replace.text.stream.stage",
+    "description": "Replace Stream Stage",
+    "displayName": "Replace Stream Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.replace.text.stream.stage.ReplaceTextStreamStage",
+            "pluginName": "com.hitachi.hci.replace.text.stream.stage.replaceTextStreamStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.6"
+}
+
