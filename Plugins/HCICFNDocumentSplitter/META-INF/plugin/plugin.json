@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.cfn.document.splitter",
+    "description": "CFN Document Splitter",
+    "displayName": "CFN Document Splitter",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.cfn.document.splitter.CFNDocumentSplitterStage",
+            "pluginName": "com.hitachi.hci.cfn.document.splitter.cFNDocumentSplitterStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.3"
+}
