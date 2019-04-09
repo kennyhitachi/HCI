@@ -1,0 +1,23 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.stage.custom.compare",
+    "description": "Hitachi Vantara Custom Connector and Stage Plugins",
+    "displayName": "HCI Custom Compare Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CountMetadataFieldValueMatchStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.custom.countMetadataFieldValueMatchStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        },
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CountMetadataFieldNameMatchStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.custom.countMetadataFieldNameMatchStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        },
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CompareTwoMetadataFieldValuesStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.custom.compareTwoMetadataFieldValuesStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
