@@ -205,7 +205,7 @@ public class CountMetadataFieldValueMatchStage implements StagePlugin {
         
         // Get the field for search string
         DocumentFieldValue<?> searchFieldValue = docBuilder.getMetadataValue(searchFieldName);  
-        String searchFieldValueString = searchFieldValue.toString();
+        String searchFieldValueString = String.valueOf(searchFieldValue);
         
         // Invoke countMatches to find the match and return the count
         int matchResultCount = CountMatches.countMatches(searchFieldValueString, regExString);

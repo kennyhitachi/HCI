@@ -34,7 +34,7 @@ public class CompareTwoMetadataFieldValuesStage implements StagePlugin {
 
     private static final String PLUGIN_NAME = "com.hitachi.hci.plugins.stage.custom.compareTwoMetadataFieldValuesStage";
     private static final String NAME = "Compare Field Values";
-    private static final String DESCRIPTION = "Comparing two metadata field values using Java compareToIgnoreCase function. If equal, then returns 0, else non-zero. For other comparision, refer to Java compareToIgnoreCase";
+    private static final String DESCRIPTION = "Comparing two metadata field values using Java compareToIgnoreCase function. If equal, then returns 0, else non-zero. For other comparision, refer to Java compareToIgnoreCase.";
 
     private static final String SUBCATEGORY = "Custom";
 
@@ -206,10 +206,10 @@ public class CompareTwoMetadataFieldValuesStage implements StagePlugin {
         
         // Get the field names string
         DocumentFieldValue<?> fieldName1Value = docBuilder.getMetadataValue(fieldName1);  
-        String fieldName1ValueString = fieldName1Value.toString();
+        String fieldName1ValueString = String.valueOf(fieldName1Value);
 
         DocumentFieldValue<?> fieldName2Value = docBuilder.getMetadataValue(fieldName2);  
-        String fieldName2ValueString = fieldName2Value.toString();
+        String fieldName2ValueString = String.valueOf(fieldName2Value);
         
         // Invoke compareResultRaw to compare and return the compareTo result
         int compareResultRaw = compareStringsRaw(fieldName1ValueString, fieldName2ValueString);
@@ -218,6 +218,8 @@ public class CompareTwoMetadataFieldValuesStage implements StagePlugin {
         //
         // HCI Document Metadata
         //
+        docBuilder.addMetadata("fieldName1ValueString", StringDocumentFieldValue.builder().setString(fieldName1ValueString).build());
+        docBuilder.addMetadata("fieldName2ValueString", StringDocumentFieldValue.builder().setString(fieldName2ValueString).build());
         docBuilder.addMetadata(compareResultRawFieldName, StringDocumentFieldValue.builder().setString(compareResultRawString).build());
 
 
