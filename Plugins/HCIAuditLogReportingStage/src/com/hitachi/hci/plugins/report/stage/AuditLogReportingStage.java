@@ -43,6 +43,7 @@ import com.hds.ensemble.sdk.plugin.PluginConfig;
 import com.hds.ensemble.sdk.plugin.PluginSession;
 import com.hds.ensemble.sdk.stage.StagePlugin;
 import com.hds.ensemble.sdk.stage.StagePluginCategory;
+import com.sun.glass.ui.Size;
 
 public class AuditLogReportingStage implements StagePlugin {
 
@@ -156,6 +157,12 @@ public class AuditLogReportingStage implements StagePlugin {
 			.setUserVisibleName("Write AuditLog").setUserVisibleDescription(
 					"Check this option to write the statistics and summary to a Audit log on a HCP namespace.");
 
+	// Admin Host Name Text Field
+	public static final ConfigProperty.Builder ADMIN_HOST = new ConfigProperty.Builder()
+			.setName("hci.adminHost").setValue("").setType(PropertyType.TEXT).setRequired(true)
+			.setUserVisibleName("Admin Host")
+			.setUserVisibleDescription("Full URL of the Admin HCP namespace that store the Audit log");
+	
 	// Enable Debug
 	public static final ConfigProperty.Builder DEBUG = new ConfigProperty.Builder().setName("hci.debug")
 			.setType(PropertyType.CHECKBOX).setValue("false").setRequired(false).setUserVisibleName("Debug")
@@ -186,6 +193,7 @@ public class AuditLogReportingStage implements StagePlugin {
 		reportGroupProperties.add(CHECK_PROCESSED);
 		reportGroupProperties.add(CHECK_FAILURES);
 		reportGroupProperties.add(WRITE_AUDIT_LOG);
+		reportGroupProperties.add(ADMIN_HOST);
 		reportGroupProperties.add(DEBUG);
 		reportGroupProperties.add(EXPORT_MODE);
 	}
@@ -416,13 +424,18 @@ public class AuditLogReportingStage implements StagePlugin {
 								sb.append("\n");
 								failuresExist = true;
 							} 
-							if ("UK".equalsIgnoreCase(newobj.get("val").toString())) {
-								sb.append("UK namespace - Number of emails written : ");
+							if ("GB".equalsIgnoreCase(newobj.get("val").toString())) {
+								sb.append("GB namespace - Number of emails written : ");
 								sb.append(newobj.get("count").toString());
 								sb.append("\n");
 							}
 							if ("US".equalsIgnoreCase(newobj.get("val").toString())) {
 								sb.append("US namespace - Number of emails written : ");
+								sb.append(newobj.get("count").toString());
+								sb.append("\n");
+							}
+							if ("NL".equalsIgnoreCase(newobj.get("val").toString())) {
+								sb.append("NL namespace - Number of emails written : ");
 								sb.append(newobj.get("count").toString());
 								sb.append("\n");
 							}
@@ -481,10 +494,12 @@ public class AuditLogReportingStage implements StagePlugin {
 
 				String[] lines = csvResponseString.split("\n");
 				for (String line : lines) {
-					String[] cols = line.split(",");
+					String[] cols = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
 					formattedFailures.append(String.format("%-25s%-50s%s\n", cols[0], cols[1], cols[2]));
 				}
 			}
+			
+			
 
 			if (!sb.toString().isEmpty() || !formattedFailures.toString().isEmpty()) {
 				sb.append("\n");
@@ -495,10 +510,9 @@ public class AuditLogReportingStage implements StagePlugin {
 				if (formattedFailures.toString().isEmpty()){
 					sb.append("No Failure Items Found.");
 					sb.append("\n");
-				}
-				docBuilder.setMetadata(M_EMAIL_METADATA,
-						StringDocumentFieldValue.builder().setString(sb.append(formattedFailures).toString()).build());
+				}				
 			}
+			
 
 			String currentDateTime = sdf_time.format(new Date());
 			String[] dateTokens = currentDateTime.split("-");
@@ -511,6 +525,19 @@ public class AuditLogReportingStage implements StagePlugin {
 			if (shouldWriteAuditLog) {
 				docBuilder.setMetadata(M_WRITE_AUDIT_LOG, StringDocumentFieldValue.builder().setString("true").build());
 			}
+			
+			if (!sb.toString().isEmpty() || !formattedFailures.toString().isEmpty()) {
+				if (formattedFailures.toString().length() + sb.length() > (900*1024)) {
+					// If more than 0.9 MB, then provide a link because metadata cannot have more than 1 MB
+					sb.append("Link to the Audit Log: " + config.getPropertyValue(ADMIN_HOST.getName()) + relPath + auditLogFileName + "\n");
+				} else {
+					// If less than 0.9 MB, then provide the list of failures
+					sb.append(formattedFailures).toString();
+				}
+				docBuilder.setMetadata(M_EMAIL_METADATA,
+				StringDocumentFieldValue.builder().setString(sb.toString()).build());
+			}
+			
 			StringBuilder processedHeader = new StringBuilder();
 			processedHeader.append("\n");
 			processedHeader.append("Successfully Processed : ");
@@ -559,7 +586,7 @@ public class AuditLogReportingStage implements StagePlugin {
 				return endOfDocuments();
 			}
 		};
-	}
+	} 
 
 	public String getRequestURL(String host, String port, String index) {
 		StringBuilder sb = new StringBuilder();
@@ -574,7 +601,7 @@ public class AuditLogReportingStage implements StagePlugin {
 		sb.append(PATH_SEPERATOR);
 		sb.append("select");
 
-		return sb.toString();
+		return sb.toString(); 
 	}
 
 	public StagePluginCategory getCategory() {
