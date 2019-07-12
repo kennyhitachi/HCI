@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hitachi.hci.term.frequency.stage",
+    "description": "Term Frequency Stage",
+    "displayName": "Term Frequency Stage",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.term.frequency.stage.TermFrequencyStage",
+            "pluginName": "com.hitachi.hci.term.frequency.stage.TermFrequencyStage",
+            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
+        }
+    ],
+    "version": "1.1.3"
+}
