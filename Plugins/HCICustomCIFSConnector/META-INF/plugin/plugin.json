@@ -1,0 +1,13 @@
+{
+    "bundleName": "com.hitachi.hci.plugins.connector.custom",
+    "description": "Hitachi Vantara Custom Connector Plugins",
+    "displayName": "HCI Custom CIFS Multile Paths Connector",
+    "plugins": [
+        {
+            "pluginImplementation": "com.hitachi.hci.plugins.connector.custom.CifsMultiplePathConnector",
+            "pluginName": "CifsMultiplePathConnector",
+            "pluginType": "com.hds.ensemble.sdk.connector.ConnectorPlugin"
+        }
+    ],
+    "version": "1.0.0"
+}
