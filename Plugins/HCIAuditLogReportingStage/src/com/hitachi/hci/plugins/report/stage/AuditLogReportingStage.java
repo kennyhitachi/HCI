@@ -43,7 +43,6 @@ import com.hds.ensemble.sdk.plugin.PluginConfig;
 import com.hds.ensemble.sdk.plugin.PluginSession;
 import com.hds.ensemble.sdk.stage.StagePlugin;
 import com.hds.ensemble.sdk.stage.StagePluginCategory;
-import com.sun.glass.ui.Size;
 
 public class AuditLogReportingStage implements StagePlugin {
 
@@ -55,7 +54,7 @@ public class AuditLogReportingStage implements StagePlugin {
 	private static final String TEST_QUERY = "q=*:*&rows=0&wt=json";
 	private static final String FACET_QUERY = "json.facet={moved:{type : terms,mincount : 1,limit : -1,numBuckets : true,field : MovedToCountry},"
 			+ "numread:{type : terms,mincount : 1,limit : -1,numBuckets : true,field : numberRead}}";
-	private static final String PROCESSED_QUERY = "q=*:*&fq=runDate:[START TO END]&fq=MovedDateTime:[* TO *]&fl=FileName:HCI_filename,OriginalLocation:HCI_URI,NewLocation:targetURI,UserName:account,Date_Moved_To_Country_Namespace:MovedDateTime,Date_of_ICEChat_Email:Creation_Date,Date_Ingested_To_HCP:HCI_modifiedDateString&rows=ITEMS&wt=csv";
+	private static final String PROCESSED_QUERY = "q=*:*&fq=runDate:[START TO END]&fq=MovedDateTime:[* TO *]&fl=FileName:HCI_filename,OriginalLocation:HCI_URI,NewLocation:targetURI,UserName:combinedFields,Date_Moved_To_Country_Namespace:MovedDateTime,Date_of_ICEChat_Email:Creation_Date,Date_Ingested_To_HCP:HCI_modifiedDateString&rows=ITEMS&wt=csv";
 	private static final String FAILURE_QUERY = "q=*:*&fq=runDate:[START TO END]&fq=-MovedDateTime:[* TO *]&fl=Date_of_ICEChat_Email:Creation_Date,UserName:account,OriginalLocation:HCI_URI&rows=ITEMS&wt=csv";
 
 	private static final String START_DATE_SUFFIX = "T00:00:00Z";
