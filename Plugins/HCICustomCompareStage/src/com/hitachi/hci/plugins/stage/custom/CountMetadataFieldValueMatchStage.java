@@ -8,6 +8,7 @@
 
 package com.hitachi.hci.plugins.stage.custom;
 
+import com.hitachi.hci.plugins.stage.utils.CountMatches;
 import com.hds.ensemble.sdk.config.Config;
 import com.hds.ensemble.sdk.config.ConfigProperty;
 import com.hds.ensemble.sdk.config.ConfigPropertyGroup;
@@ -25,7 +26,6 @@ import com.hds.ensemble.sdk.plugin.PluginConfig;
 import com.hds.ensemble.sdk.plugin.PluginSession;
 import com.hds.ensemble.sdk.stage.StagePlugin;
 import com.hds.ensemble.sdk.stage.StagePluginCategory;
-import com.hitachi.hci.plugins.stage.utils.CountMatches;
 
 import java.util.ArrayList;
 import java.util.Iterator;

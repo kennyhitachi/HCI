@@ -1,28 +1,23 @@
 {
     "bundleName": "com.hitachi.hci.plugins.stage.custom.compare",
     "description": "Hitachi Vantara Custom Connector and Stage Plugins",
-    "displayName": "HCI Custom Fields Transformation Stage",
+    "displayName": "HCI Custom Compare Stage",
     "plugins": [
         {
-            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CountMetadataFieldValueMatchStage1",
-            "pluginName": "com.hitachi.hci.plugins.stage.custom.countMetadataFieldValueMatchStage1",
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CountMetadataFieldValueMatchStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.custom.countMetadataFieldValueMatchStage",
             "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
         },
         {
-            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CountMetadataFieldNameMatchStage1",
-            "pluginName": "com.hitachi.hci.plugins.stage.custom.countMetadataFieldNameMatchStage1",
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CountMetadataFieldNameMatchStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.custom.countMetadataFieldNameMatchStage",
             "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
         },
         {
-            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CompareTwoMetadataFieldValuesStage1",
-            "pluginName": "com.hitachi.hci.plugins.stage.custom.compareTwoMetadataFieldValuesStage1",
-            "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
-        },
-        {
-            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CombineMetadataFieldsIntoOneStage1",
-            "pluginName": "com.hitachi.hci.plugins.stage.custom.combineMetadataFieldsIntoOneStage1",
+            "pluginImplementation": "com.hitachi.hci.plugins.stage.custom.CompareTwoMetadataFieldValuesStage",
+            "pluginName": "com.hitachi.hci.plugins.stage.custom.compareTwoMetadataFieldValuesStage",
             "pluginType": "com.hds.ensemble.sdk.stage.StagePlugin"
         }
     ],
-    "version": "1.0.2"
+    "version": "1.0.0"
 }
